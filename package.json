@@ -1,0 +1,22 @@
+{
+  "name": "brancher",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,web -c cyan,magenta \"npm run dev -w @brancher/server\" \"npm run dev -w @brancher/web\"",
+    "build": "npm run build -w @brancher/web",
+    "test": "vitest run",
+    "typecheck": "tsc -p packages/core && tsc -p packages/server && tsc -p packages/web",
+    "demo": "tsx packages/core/scripts/makeDemoRepo.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "concurrently": "^10.0.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.4"
+  }
+}
