@@ -8,12 +8,12 @@ import { useStore } from './store.ts';
 /** Decorative animated branch lines behind the hero. */
 function HeroArt() {
   const paths = [
-    { d: 'M-20,300 H1500', c: '#67e8f9', w: 3 },
-    { d: 'M180,300 C240,300 240,220 300,220 H620 C680,220 680,300 740,300', c: '#a78bfa', w: 2 },
-    { d: 'M380,220 C430,220 430,150 480,150 H560 C600,150 600,220 640,220', c: '#f0abfc', w: 2 },
-    { d: 'M820,300 C880,300 880,390 940,390 H1240', c: '#bef264', w: 2 },
-    { d: 'M980,390 C1030,390 1030,460 1080,460 H1180 C1220,460 1220,390 1260,390', c: '#fda4af', w: 2 },
-    { d: 'M1040,300 C1090,300 1090,210 1140,210 H1500', c: '#fcd34d', w: 2 },
+    { d: 'M-20,300 H1500', c: '#e8dfcc', w: 3 },
+    { d: 'M180,300 C240,300 240,220 300,220 H620 C680,220 680,300 740,300', c: '#8fa3c0', w: 2 },
+    { d: 'M380,220 C430,220 430,150 480,150 H560 C600,150 600,220 640,220', c: '#c48b78', w: 2 },
+    { d: 'M820,300 C880,300 880,390 940,390 H1240', c: '#a3b477', w: 2 },
+    { d: 'M980,390 C1030,390 1030,460 1080,460 H1180 C1220,460 1220,390 1260,390', c: '#c9878f', w: 2 },
+    { d: 'M1040,300 C1090,300 1090,210 1140,210 H1500', c: '#d4a24c', w: 2 },
   ];
   return (
     <svg className="hero-art pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 1440 600" preserveAspectRatio="xMidYMid slice">
@@ -70,7 +70,7 @@ export function Landing() {
       <div className="hero-vignette pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_640px_340px_at_center,var(--color-ink-950)_35%,transparent_100%)]" />
       <div className="relative z-10 w-full max-w-2xl">
         <div className="mb-8 text-center">
-          <Logo className="hero-logo mx-auto mb-5 h-14 w-14 drop-shadow-[0_0_20px_rgba(103,232,249,0.5)]" />
+          <Logo className="hero-logo mx-auto mb-5 h-14 w-14 drop-shadow-[0_0_20px_rgba(212,162,76,0.35)]" />
           <h1 className="brand-title bg-gradient-to-r from-cyan-200 via-white to-fuchsia-200 bg-clip-text text-5xl font-bold tracking-tight text-transparent">
             Brancher
           </h1>

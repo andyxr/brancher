@@ -409,7 +409,7 @@ function LaneScrollbar({
       onWheel={(e) => e.stopPropagation()}
     >
       <div
-        className="lane-scroll-thumb absolute inset-x-0 cursor-grab rounded-full bg-white/20 shadow-[0_0_8px_rgba(103,232,249,0.25)] transition-colors group-hover:bg-cyan-300/50 active:cursor-grabbing"
+        className="lane-scroll-thumb absolute inset-x-0 cursor-grab rounded-full bg-white/20 shadow-[0_0_8px_rgba(232,223,204,0.15)] transition-colors group-hover:bg-cyan-300/50 active:cursor-grabbing"
         style={{ top: thumbTop, height: thumbH }}
         onPointerDown={(e) => {
           e.stopPropagation();

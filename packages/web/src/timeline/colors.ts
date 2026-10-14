@@ -13,10 +13,14 @@ function hash(s: string): number {
 /** Stable color per branch name; deeper branches are slightly lighter. */
 export function branchColor(b: Pick<Branch, 'name' | 'status' | 'depth'>, p: Palette): string {
   if (b.status === 'trunk') return p.trunk;
+  const { saturation, lightness, lightnessMax, swatches } = p.branch;
+  if (swatches) {
+    const sw = swatches[hash(b.name) % swatches.length];
+    return `hsl(${sw.h} ${sw.s}% ${Math.min(sw.l + b.depth * 4, lightnessMax)}%)`;
+  }
   // Skip the cyan band so feature branches never look like the trunk.
   let hue = hash(b.name) % 300;
   if (hue > 165) hue += 60;
-  const { saturation, lightness, lightnessMax } = p.branch;
   const light = Math.min(lightness + b.depth * 4, lightnessMax);
   return `hsl(${hue} ${saturation}% ${light}%)`;
 }
