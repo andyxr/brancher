@@ -64,6 +64,48 @@ body {
   animation: flow 14s linear infinite;
 }
 
+/* Toggle buttons that are engaged (Animate, Follow). */
+.btn.lit {
+  border-color: rgb(103 232 249 / 0.5);
+  background: rgb(103 232 249 / 0.12);
+  color: #a5f3fc;
+  box-shadow: 0 0 12px rgb(103 232 249 / 0.25);
+}
+
+.playback-scrub {
+  appearance: none;
+  height: 16px;
+  background: transparent;
+  cursor: pointer;
+}
+.playback-scrub::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 0.15);
+}
+.playback-scrub::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 0.15);
+}
+.playback-scrub::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: #a5f3fc;
+  box-shadow: 0 0 10px rgb(103 232 249 / 0.8);
+}
+.playback-scrub::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 50%;
+  background: #a5f3fc;
+  box-shadow: 0 0 10px rgb(103 232 249 / 0.8);
+}
+
 .scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
 .scroll-thin::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 0.1); border-radius: 4px; }
 .scroll-thin::-webkit-scrollbar-track { background: transparent; }
@@ -344,5 +386,45 @@ kbd {
   background: #b0b0e0;
   border: 1px solid #404040;
   border-radius: 0;
+  box-shadow: var(--mac-bevel);
+}
+
+[data-theme="mac_os_8"] .btn.lit,
+[data-theme="mac_os_8"] .btn.lit:hover:not(:disabled) {
+  background: linear-gradient(to bottom, #98a9d4 0%, #2a4ea0 100%);
+  border-color: #16307a;
+  color: #ffffff;
+  box-shadow: inset 1px 1px 0 #5874b8, inset -1px -1px 0 #ffffff;
+}
+
+/* Scrubber: inset white groove with a square platinum thumb. */
+[data-theme="mac_os_8"] .playback-scrub::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 0;
+  background: #ffffff;
+  border: 1px solid #404040;
+  box-shadow: inset 1px 1px 0 #888888;
+}
+[data-theme="mac_os_8"] .playback-scrub::-moz-range-track {
+  height: 6px;
+  border-radius: 0;
+  background: #ffffff;
+  border: 1px solid #404040;
+}
+[data-theme="mac_os_8"] .playback-scrub::-webkit-slider-thumb {
+  width: 11px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 0;
+  background: #b0b0e0;
+  border: 1px solid #404040;
+  box-shadow: var(--mac-bevel);
+}
+[data-theme="mac_os_8"] .playback-scrub::-moz-range-thumb {
+  width: 11px;
+  height: 14px;
+  border-radius: 0;
+  background: #b0b0e0;
+  border: 1px solid #404040;
   box-shadow: var(--mac-bevel);
 }

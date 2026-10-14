@@ -14,6 +14,8 @@ interface Props {
   size: { w: number; h: number };
   laneH: number;
   top: number;
+  /** Animate mode's current time, or null. */
+  playhead: number | null;
   /** Centers the main view on a point in unzoomed content coordinates. */
   onNavigate(cx: number, cy: number): void;
 }
@@ -22,7 +24,7 @@ const H = 56;
 const MARGIN = 16;
 
 /** Overview of the whole history. Drag or click to move the main view. */
-export function Minimap({ vm, data, base, view, size, laneH, top, onNavigate }: Props) {
+export function Minimap({ vm, data, base, view, size, laneH, top, playhead, onNavigate }: Props) {
   const w = Math.min(size.w - MARGIN * 2, 520);
   const [r0, r1] = base.range();
   const sx = (px: number) => ((px - r0) / (r1 - r0)) * w;
@@ -75,6 +77,17 @@ export function Minimap({ vm, data, base, view, size, laneH, top, onNavigate }: 
           strokeOpacity={0.5}
           rx={3}
         />
+        {playhead !== null && (
+          <line
+            x1={sx(base(new Date(playhead * 1000)))}
+            x2={sx(base(new Date(playhead * 1000)))}
+            y1={0}
+            y2={H}
+            stroke={p.playhead}
+            strokeWidth={1.5}
+            pointerEvents="none"
+          />
+        )}
       </svg>
     </div>
   );

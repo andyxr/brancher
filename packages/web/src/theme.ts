@@ -28,6 +28,12 @@ export interface Palette {
   gridOpacity: number;
   /** Minimap viewport window. */
   window: string;
+  /** Animate mode's playhead rule and date pill. */
+  playhead: string;
+  /** Text on the playhead's date pill. */
+  playheadText: string;
+  /** Pop ring on events that just happened during playback. */
+  flash: string;
   /** Whether focused/trunk branches get a blurred glow. */
   glow: boolean;
   branch: { saturation: number; lightness: number; lightnessMax: number };
@@ -44,6 +50,9 @@ const PALETTES: Record<ThemeId, Palette> = {
     ink: 'white',
     gridOpacity: 0.04,
     window: 'white',
+    playhead: '#a5f3fc',
+    playheadText: '#05060b',
+    flash: '#ffffff',
     glow: true,
     branch: { saturation: 92, lightness: 62, lightnessMax: 78 },
     legend: { merged: '#c4b5fd', squashed: '#f0abfc', open: '#bef264', abandoned: '#94a3b8' },
@@ -57,6 +66,9 @@ const PALETTES: Record<ThemeId, Palette> = {
     ink: '#000000',
     gridOpacity: 0.08,
     window: '#000000',
+    playhead: '#000000',
+    playheadText: '#ffffff',
+    flash: '#16307a',
     glow: false,
     branch: { saturation: 70, lightness: 36, lightnessMax: 48 },
     legend: { merged: '#5b3a9e', squashed: '#8a2a8a', open: '#2f7a1f', abandoned: '#6a6a6a' },

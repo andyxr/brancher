@@ -4,6 +4,16 @@ import { getTimeline, openRepo, waitUntilReady, type ProgressEvent, type RepoSum
 
 export type Phase = 'idle' | 'opening' | 'cloning' | 'loading' | 'ready' | 'error';
 export type StatusFilter = Record<Exclude<BranchStatus, 'trunk'>, boolean>;
+export const SPEEDS = [0.5, 1, 2, 4] as const;
+export type Speed = (typeof SPEEDS)[number];
+
+/** Animate mode. `t` is the playhead (unix seconds); null playback means the normal static view. */
+export interface Playback {
+  t: number;
+  playing: boolean;
+  /** Camera keeps the playhead in view; any manual pan turns this off. */
+  follow: boolean;
+}
 
 const RECENT_KEY = 'brancher.recent';
 
@@ -37,6 +47,8 @@ interface State {
   search: string;
   author: string;
   statusFilter: StatusFilter;
+  playback: Playback | null;
+  speed: Speed;
 
   open(source: string, githubToken?: string, rememberToken?: boolean): Promise<void>;
   refresh(): Promise<void>;
@@ -47,6 +59,12 @@ interface State {
   setSearch(s: string): void;
   setAuthor(s: string): void;
   toggleStatus(s: keyof StatusFilter): void;
+  startAnimate(): void;
+  stopAnimate(): void;
+  togglePlay(): void;
+  seek(t: number): void;
+  setSpeed(speed: Speed): void;
+  setFollow(follow: boolean): void;
 }
 
 export const useStore = create<State>((set, get) => ({
@@ -60,9 +78,11 @@ export const useStore = create<State>((set, get) => ({
   search: '',
   author: '',
   statusFilter: { merged: true, squashed: true, open: true, abandoned: true },
+  playback: null,
+  speed: 1,
 
   async open(source, githubToken, rememberToken) {
-    set({ phase: 'opening', error: undefined, progress: undefined });
+    set({ phase: 'opening', error: undefined, progress: undefined, playback: null });
     try {
       const repo = await openRepo(source, githubToken, rememberToken);
       set({ repo });
@@ -87,7 +107,7 @@ export const useStore = create<State>((set, get) => ({
   async refresh() {
     const { repo } = get();
     if (!repo) return;
-    set({ phase: 'loading' });
+    set({ phase: 'loading', playback: null });
     try {
       const res = await getTimeline(repo.id, true);
       set({ phase: 'ready', timeline: res.timeline, warnings: res.warnings });
@@ -97,7 +117,7 @@ export const useStore = create<State>((set, get) => ({
   },
 
   close() {
-    set({ phase: 'idle', repo: null, timeline: null, selectedId: null, hoveredId: null, search: '', author: '' });
+    set({ phase: 'idle', repo: null, timeline: null, selectedId: null, hoveredId: null, search: '', author: '', playback: null });
     const url = new URL(location.href);
     url.searchParams.delete('repo');
     history.replaceState(null, '', url);
@@ -114,6 +134,28 @@ export const useStore = create<State>((set, get) => ({
   setSearch: (search) => set({ search }),
   setAuthor: (author) => set({ author }),
   toggleStatus: (s) => set({ statusFilter: { ...get().statusFilter, [s]: !get().statusFilter[s] } }),
+
+  startAnimate() {
+    const { timeline } = get();
+    if (timeline) set({ playback: { t: timeline.range.start, playing: true, follow: true } });
+  },
+  stopAnimate: () => set({ playback: null }),
+  togglePlay() {
+    const { playback, timeline } = get();
+    if (!playback || !timeline) return;
+    // Pressing play at the end replays from the start.
+    const atEnd = playback.t >= timeline.range.end;
+    set({ playback: { ...playback, playing: !playback.playing, t: atEnd && !playback.playing ? timeline.range.start : playback.t } });
+  },
+  seek(t) {
+    const { playback } = get();
+    if (playback) set({ playback: { ...playback, t } });
+  },
+  setSpeed: (speed) => set({ speed }),
+  setFollow(follow) {
+    const { playback } = get();
+    if (playback && playback.follow !== follow) set({ playback: { ...playback, follow } });
+  },
 }));
 
 export interface ViewModel {

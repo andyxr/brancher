@@ -1,11 +1,14 @@
 import type { Branch, Timeline as TimelineData } from '@brancher/core/browser';
 import { scaleTime } from 'd3';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { fmtDate } from '../format.ts';
 import { useStore, type ViewModel } from '../store.ts';
 import { usePalette, type Palette } from '../theme.ts';
 import { branchColor } from './colors.ts';
 import { Minimap } from './Minimap.tsx';
+import type { PlaybackClock } from './playback.ts';
 import { Tooltip } from './Tooltip.tsx';
+import { usePrefersReducedMotion } from './usePlayback.ts';
 
 export const AXIS_H = 40;
 export const LANE_H = 30;
@@ -15,6 +18,8 @@ const RIGHT = 80;
 const BOTTOM = 92; // room for the minimap
 const FORK_W = 14;
 const PANEL_W = 380; // SidePanel width + margin
+/** How long an event's pop ring lasts, in seconds of 1× playback. */
+const FLASH_S = 0.7;
 
 export interface View {
   k: number;
@@ -32,11 +37,12 @@ export interface TimelineHandle {
 interface Props {
   data: TimelineData;
   vm: ViewModel;
+  clock: PlaybackClock;
 }
 
 const toDate = (sec: number) => new Date(sec * 1000);
 
-export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ data, vm }, ref) {
+export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ data, vm, clock }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 1200, h: 700 });
   const [view, setView] = useState<View>({ k: 1, tx: 0, ty: 0 });
@@ -45,6 +51,9 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
   const selectedId = useStore((s) => s.selectedId);
   const setHovered = useStore((s) => s.setHovered);
   const setSelected = useStore((s) => s.setSelected);
+  const playback = useStore((s) => s.playback);
+  const speed = useStore((s) => s.speed);
+  const reducedMotion = usePrefersReducedMotion();
   const p = usePalette();
 
   useEffect(() => {
@@ -83,14 +92,19 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
     [base, maxK, size.w, size.h, contentH],
   );
   const update = useCallback((fn: (v: View) => View) => setView((v) => clamp(fn(v))), [clamp]);
+  // Panning by hand means the user wants to look elsewhere, so the camera stops chasing the playhead.
+  const unfollow = () => useStore.getState().setFollow(false);
 
   const zoomAt = useCallback(
     (px: number, factor: number) =>
       update((v) => {
         const k = Math.min(Math.max(v.k * factor, 1), maxK);
-        return { ...v, k, tx: px - ((px - v.tx) * k) / v.k };
+        // While following, zoom around the playhead so it stays put instead of sliding off screen.
+        const playback = useStore.getState().playback;
+        const ax = playback?.follow ? base(toDate(playback.t)) * v.k + v.tx : px;
+        return { ...v, k, tx: ax - ((ax - v.tx) * k) / v.k };
       }),
-    [update, maxK],
+    [update, maxK, base],
   );
 
   useImperativeHandle(
@@ -98,10 +112,14 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
     () => ({
       fit: () => setView({ k: 1, tx: 0, ty: 0 }),
       zoomBy: (f) => zoomAt(size.w / 2, f),
-      panBy: (dx, dy) => update((v) => ({ ...v, tx: v.tx + dx, ty: v.ty + dy })),
+      panBy: (dx, dy) => {
+        if (dx) unfollow();
+        update((v) => ({ ...v, tx: v.tx + dx, ty: v.ty + dy }));
+      },
       focus: (id) => {
         const b = vm.byId.get(id);
         if (!b) return;
+        unfollow();
         const s = b.forkTime ?? b.createdAt;
         const e = Math.max(b.mergedAt ?? b.lastActivity, s + 3600);
         const span = base(toDate(e)) - base(toDate(s));
@@ -123,6 +141,8 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
       if (e.shiftKey) {
         update((v) => ({ ...v, ty: v.ty - (e.deltaY || e.deltaX) }));
       } else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        // Trackpad zooms carry sideways jitter; only a clearly sideways swipe means "look elsewhere".
+        if (Math.abs(e.deltaX) > 2 * Math.abs(e.deltaY)) unfollow();
         update((v) => ({ ...v, tx: v.tx - e.deltaX }));
       } else {
         const rect = el.getBoundingClientRect();
@@ -149,7 +169,10 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
     const dy = e.clientY - d.y;
     if (!d.moved && Math.hypot(dx, dy) < 3) return;
     // Capture only once dragging starts; capturing on pointerdown would retarget clicks away from branches.
-    if (!d.moved) (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    if (!d.moved) {
+      (e.currentTarget as Element).setPointerCapture(e.pointerId);
+      unfollow();
+    }
     d.moved = true;
     d.x = e.clientX;
     d.y = e.clientY;
@@ -178,6 +201,25 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
     return set;
   }, [focusId, vm]);
 
+  // Follow camera: when the playhead drifts out of the middle band, bring it back to 30% from the left,
+  // without scrolling past either end of the history (so at fit zoom the camera stays put).
+  const followX = playback?.follow ? xs(playback.t) : null;
+  useEffect(() => {
+    if (followX === null || (followX >= size.w * 0.25 && followX <= size.w * 0.7)) return;
+    const [, r1] = base.range();
+    update((v) => ({ ...v, tx: Math.min(Math.max(v.tx + size.w * 0.3 - followX, r1 * (1 - v.k)), 0) }));
+  }, [followX, size.w, base, update]);
+
+  const at = playback?.t ?? Infinity;
+  const nowProgress = playback ? clock.progressAt(playback.t) : 0;
+  const flashAge =
+    playback?.playing && !reducedMotion
+      ? (t: number) => {
+          const age = ((nowProgress - clock.progressAt(t)) * clock.duration) / (FLASH_S * speed);
+          return age >= 0 && age < 1 ? age : null;
+        }
+      : null;
+
   const [tMin, tMax] = [x.invert(-50).getTime() / 1000, x.invert(size.w + 50).getTime() / 1000];
   // Ticks come from the visible window, not the whole domain, so they refine as you zoom.
   const visibleScale = scaleTime().domain([x.invert(0), x.invert(size.w)]).range([0, size.w]);
@@ -190,6 +232,7 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
   };
   const visible = vm.branches.filter((b) => {
     const s = b.forkTime ?? b.createdAt;
+    if (b.status !== 'trunk' && s > at) return false;
     const e = b.status === 'open' ? end : Math.max(b.mergedAt ?? 0, b.lastActivity);
     if (e < tMin || s > tMax) return false;
     const y = laneY(b.lane);
@@ -229,6 +272,8 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
               xs={xs}
               laneY={laneY}
               end={end}
+              at={at}
+              flashAge={flashAge}
               dim={(lineage !== null && !lineage.has(b.id)) || (vm.matches !== null && !vm.matches.has(b.id) && b.status !== 'trunk')}
               focused={b.id === hoveredId || b.id === selectedId}
               showLabel={b.id === focusId || (vm.matches?.has(b.id) ?? false)}
@@ -255,6 +300,8 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
             latest
           </text>
         </g>
+
+        {playback && <Playhead x={xs(playback.t)} t={playback.t} height={size.h} p={p} />}
       </svg>
 
       {hovered && pointer && !dragging && <Tooltip branch={hovered} vm={vm} x={pointer.x} y={pointer.y} width={size.w} />}
@@ -267,7 +314,11 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
         size={size}
         laneH={LANE_H}
         top={TOP}
-        onNavigate={(cx, cy) => update((v) => ({ ...v, tx: size.w / 2 - cx * v.k, ty: size.h / 2 - cy }))}
+        playhead={playback?.t ?? null}
+        onNavigate={(cx, cy) => {
+          unfollow();
+          update((v) => ({ ...v, tx: size.w / 2 - cx * v.k, ty: size.h / 2 - cy }));
+        }}
       />
 
       {overflows && (
@@ -290,10 +341,35 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
         <span><kbd>drag</kbd> pan</span>
         <span><kbd>f</kbd> fit</span>
         <span><kbd>/</kbd> search</span>
+        {playback ? (
+          <>
+            <span><kbd>space</kbd> play/pause</span>
+            <span><kbd>esc</kbd> exit</span>
+          </>
+        ) : (
+          <span><kbd>a</kbd> animate</span>
+        )}
       </div>
     </div>
   );
 });
+
+/** Animate mode's current-time rule, with its date on a pill in the axis band. */
+function Playhead({ x, t, height, p }: { x: number; t: number; height: number; p: Palette }) {
+  const label = fmtDate(t);
+  const w = label.length * 6.6 + 16;
+  return (
+    <g pointerEvents="none">
+      {p.glow && <line x1={x} x2={x} y1={AXIS_H} y2={height} stroke={p.playhead} strokeWidth={6} strokeOpacity={0.3} style={{ filter: 'blur(4px)' }} />}
+      <line x1={x} x2={x} y1={AXIS_H} y2={height} stroke={p.playhead} strokeWidth={1.5} />
+      <rect x={x - w / 2} y={AXIS_H - 30} width={w} height={20} rx={p.glow ? 10 : 2} fill={p.playhead} />
+      <path d={`M${x - 5},${AXIS_H - 10} L${x},${AXIS_H - 4} L${x + 5},${AXIS_H - 10}Z`} fill={p.playhead} />
+      <text x={x} y={AXIS_H - 16} textAnchor="middle" className="font-mono text-[11px] font-semibold" fill={p.playheadText}>
+        {label}
+      </text>
+    </g>
+  );
+}
 
 /** Vertical scrollbar for the lanes; only shown when they don't all fit. */
 function LaneScrollbar({
@@ -357,6 +433,10 @@ interface ShapeProps {
   xs: (sec: number) => number;
   laneY: (lane: number) => number;
   end: number;
+  /** Playhead: anything that happens after this time isn't drawn. Infinity outside animate mode. */
+  at: number;
+  /** 0..1 age of an event's pop ring, or null when it shouldn't flash. Null outside playback. */
+  flashAge: ((t: number) => number | null) | null;
   dim: boolean;
   focused: boolean;
   showLabel: boolean;
@@ -370,7 +450,7 @@ function sCurve(x1: number, y1: number, x2: number, y2: number) {
   return `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`;
 }
 
-function BranchShape({ b, vm, p, xs, laneY, end, dim, focused, showLabel, onEnter, onLeave, onClick }: ShapeProps) {
+function BranchShape({ b, vm, p, xs, laneY, end, at, flashAge, dim, focused, showLabel, onEnter, onLeave, onClick }: ShapeProps) {
   const color = branchColor(b, p);
   const y = laneY(b.lane);
   const isTrunk = b.status === 'trunk';
@@ -380,7 +460,7 @@ function BranchShape({ b, vm, p, xs, laneY, end, dim, focused, showLabel, onEnte
   const xCreated = Math.max(xs(b.createdAt), xBend);
   const commitTime = new Map(b.commits.map((c) => [c.hash, c.time]));
 
-  const merges = b.merges
+  const allMerges = b.merges
     .filter((m) => vm.byId.has(m.into))
     .map((m) => {
       const xm = xs(m.at);
@@ -392,8 +472,16 @@ function BranchShape({ b, vm, p, xs, laneY, end, dim, focused, showLabel, onEnte
 
   const live = isTrunk || b.status === 'open';
   const xLast = Math.max(xs(b.lastActivity), xCreated);
-  const xBarEnd = Math.max(xLast, ...merges.map((m) => m.x1));
-  const xTail = live ? xs(end) : xBarEnd;
+  const xBarEnd = Math.max(xLast, ...allMerges.map((m) => m.x1));
+
+  // Clip to the playhead: elements appear as their moment passes.
+  const xAt = Number.isFinite(at) ? xs(at) : Infinity;
+  const created = b.createdAt <= at;
+  const settled = b.lastActivity <= at;
+  const merges = allMerges.filter(({ m }) => m.at <= at);
+  const commits = b.commits.filter((c) => c.time <= at);
+  const xBarTo = Math.min(xBarEnd, xAt);
+  const xTail = live ? Math.min(xs(end), xAt) : xBarTo;
 
   const width = isTrunk ? 4 : 2.5;
   const opacity = dim ? 0.12 : b.status === 'abandoned' ? 0.5 : 1;
@@ -410,10 +498,10 @@ function BranchShape({ b, vm, p, xs, laneY, end, dim, focused, showLabel, onEnte
       {/* Fork from parent */}
       {parent && <path d={sCurve(xf, laneY(parent.lane), xBend, y)} stroke={color} strokeWidth={1.5 * scale} strokeOpacity={linkOpacity} />}
       {/* Fork point → inferred creation: we only know it happened somewhere in here */}
-      {xCreated > xBend + 1 && (
-        <line x1={xBend} x2={xCreated} y1={y} y2={y} stroke={color} strokeWidth={1.5 * scale} strokeDasharray="1 5" strokeOpacity={0.7} />
+      {Math.min(xCreated, xAt) > xBend + 1 && (
+        <line x1={xBend} x2={Math.min(xCreated, xAt)} y1={y} y2={y} stroke={color} strokeWidth={1.5 * scale} strokeDasharray="1 5" strokeOpacity={0.7} />
       )}
-      <line x1={xCreated} x2={xBarEnd} y1={y} y2={y} stroke={stroke} strokeWidth={width * scale} />
+      {created && <line x1={xCreated} x2={xBarTo} y1={y} y2={y} stroke={stroke} strokeWidth={width * scale} />}
       {/* Open branches trail off toward "now" */}
       {live && xTail > xBarEnd && (
         <line
@@ -462,12 +550,12 @@ function BranchShape({ b, vm, p, xs, laneY, end, dim, focused, showLabel, onEnte
       <line x1={xf} x2={Math.max(xTail, xf + 8)} y1={y} y2={y} stroke="transparent" strokeWidth={LANE_H - 6} />
 
       {showDots &&
-        b.commits.map((c) => (
+        commits.map((c) => (
           <circle key={c.hash} cx={xs(c.time)} cy={y} r={isTrunk ? 2.5 : 2.2} fill={p.hole} stroke={stroke} strokeWidth={1.4} />
         ))}
 
       {/* Creation marker */}
-      {!isTrunk && <circle cx={xCreated} cy={y} r={3.5} fill={color} />}
+      {!isTrunk && created && <circle cx={xCreated} cy={y} r={3.5} fill={color} />}
 
       {/* Merge landing glyphs on the target lane */}
       {merges.map(({ m, xm, yInto }) =>
@@ -488,13 +576,13 @@ function BranchShape({ b, vm, p, xs, laneY, end, dim, focused, showLabel, onEnte
         ),
       )}
 
-      {b.status === 'open' && (
+      {b.status === 'open' && settled && (
         <>
           <circle cx={xLast} cy={y} r={3} fill={color} className="pulse-ring" />
           <circle cx={xLast} cy={y} r={3.5} fill={color} />
         </>
       )}
-      {b.status === 'abandoned' && (
+      {b.status === 'abandoned' && settled && (
         <path d={`M${xLast - 4},${y - 4} L${xLast + 4},${y + 4} M${xLast + 4},${y - 4} L${xLast - 4},${y + 4}`} stroke={color} strokeWidth={1.8} />
       )}
 
@@ -504,6 +592,48 @@ function BranchShape({ b, vm, p, xs, laneY, end, dim, focused, showLabel, onEnte
           {b.pr && <tspan fillOpacity={0.6}> #{b.pr.number}</tspan>}
         </text>
       )}
+
+      {flashAge && <Flashes b={b} y={y} xs={xs} xCreated={xCreated} merges={merges} flashAge={flashAge} p={p} />}
+    </g>
+  );
+}
+
+/** Pop rings on whatever this branch did in the last moment of playback. */
+function Flashes({
+  b,
+  y,
+  xs,
+  xCreated,
+  merges,
+  flashAge,
+  p,
+}: {
+  b: Branch;
+  y: number;
+  xs: (sec: number) => number;
+  xCreated: number;
+  merges: { m: Branch['merges'][number]; xm: number; yInto: number }[];
+  flashAge: (t: number) => number | null;
+  p: Palette;
+}) {
+  const events = [
+    { key: 'created', t: b.createdAt, x: xCreated, y },
+    ...b.commits.map((c) => ({ key: c.hash, t: c.time, x: xs(c.time), y })),
+    ...merges.map(({ m, xm, yInto }) => ({ key: `m${m.commit}`, t: m.at, x: xm, y: yInto })),
+  ];
+  const rings = events.flatMap((e) => {
+    const age = flashAge(e.t);
+    return age === null ? [] : [{ ...e, age }];
+  });
+  if (!rings.length) return null;
+  return (
+    <g fill="none" pointerEvents="none">
+      {rings.map((r) => (
+        <g key={r.key} opacity={1 - r.age}>
+          {p.glow && <circle cx={r.x} cy={r.y} r={4 + r.age * 10} stroke={p.flash} strokeWidth={4} style={{ filter: 'blur(3px)' }} />}
+          <circle cx={r.x} cy={r.y} r={4 + r.age * 10} stroke={p.flash} strokeWidth={p.glow ? 1.5 : 1} />
+        </g>
+      ))}
     </g>
   );
 }

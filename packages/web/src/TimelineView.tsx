@@ -4,7 +4,10 @@ import { SidePanel } from './SidePanel.tsx';
 import { buildViewModel, useStore, type StatusFilter } from './store.ts';
 import { usePalette, type Palette } from './theme.ts';
 import { ThemeSwitcher } from './ThemeSwitcher.tsx';
+import { buildClock } from './timeline/playback.ts';
+import { PlaybackBar } from './timeline/PlaybackBar.tsx';
 import { Timeline, type TimelineHandle } from './timeline/Timeline.tsx';
+import { usePlayback } from './timeline/usePlayback.ts';
 
 const LEGEND: { key: keyof StatusFilter; label: string; glyph(p: Palette): React.ReactNode }[] = [
   {
@@ -28,8 +31,8 @@ const LEGEND: { key: keyof StatusFilter; label: string; glyph(p: Palette): React
 ];
 
 export function TimelineView() {
-  const { repo, timeline, warnings, phase, statusFilter, search, author } = useStore();
-  const { refresh, close, setSearch, setAuthor, toggleStatus, setSelected } = useStore();
+  const { repo, timeline, warnings, phase, statusFilter, search, author, playback } = useStore();
+  const { refresh, close, setSearch, setAuthor, toggleStatus, setSelected, startAnimate, stopAnimate } = useStore();
   const p = usePalette();
   const timelineRef = useRef<TimelineHandle>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -40,6 +43,8 @@ export function TimelineView() {
     () => buildViewModel(timeline!, statusFilter, search, author),
     [timeline, statusFilter, search, author],
   );
+  const clock = useMemo(() => buildClock(vm.branches, timeline!.range), [vm.branches, timeline]);
+  usePlayback(clock);
   const matchList = useMemo(
     () => (vm.matches ? vm.branches.filter((b) => vm.matches!.has(b.id)).sort((a, b) => a.createdAt - b.createdAt) : []),
     [vm],
@@ -55,15 +60,25 @@ export function TimelineView() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const typing = e.target instanceof HTMLInputElement;
+      const typing = e.target instanceof HTMLInputElement && e.target.type !== 'range';
+      const { playback, startAnimate, stopAnimate, togglePlay } = useStore.getState();
       if (e.key === 'Escape') {
         if (typing) (e.target as HTMLInputElement).blur();
-        setSelected(null);
+        if (playback) stopAnimate();
+        else setSelected(null);
         return;
       }
       if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
       const t = timelineRef.current;
-      if (e.key === '/') {
+      if (e.key === ' ') {
+        // A focused button already activates on space; don't toggle twice.
+        if (!playback || e.target instanceof HTMLButtonElement) return;
+        e.preventDefault();
+        togglePlay();
+      } else if (e.key === 'a') {
+        if (playback) stopAnimate();
+        else startAnimate();
+      } else if (e.key === '/') {
         e.preventDefault();
         searchRef.current?.focus();
       } else if (e.key === 'f') t?.fit();
@@ -143,6 +158,13 @@ export function TimelineView() {
           >
             {phase === 'loading' ? 'Refreshing…' : 'Refresh'}
           </button>
+          <button
+            onClick={playback ? stopAnimate : startAnimate}
+            title={playback ? 'Exit animate (a)' : 'Replay the history (a)'}
+            className={`btn rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-200 hover:bg-white/10 ${playback ? 'lit' : ''}`}
+          >
+            Animate
+          </button>
           <ThemeSwitcher />
         </div>
       </header>
@@ -157,7 +179,8 @@ export function TimelineView() {
       )}
 
       <main className="relative min-h-0 flex-1">
-        <Timeline ref={timelineRef} data={timeline} vm={vm} />
+        <Timeline ref={timelineRef} data={timeline} vm={vm} clock={clock} />
+        <PlaybackBar clock={clock} />
         <SidePanel vm={vm} onFocus={(id) => timelineRef.current?.focus(id)} />
       </main>
     </div>
