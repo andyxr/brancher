@@ -1,7 +1,7 @@
 # Brancher
 ![Brancher repo chooser](docs/images/brancher-repo-choice.png)
 
-A temporal view of git branches: when each branch was created, which branch it came from, and when it was merged back — on a zoomable timeline.
+A temporal view of git branches: when each branch was created, which branch it came from, and when it was merged back, on a zoomable timeline.
 
 ## Quick start
 
@@ -39,11 +39,11 @@ Each branch is a lane. It starts at its fork point, runs through its commits, an
 
 ### Zoom and pan
 
-- **Zoom**: scroll the wheel (or pinch on a trackpad) to zoom the time axis around the cursor. `+` / `-` zoom around the center of the view.
-- **Pan**: drag, swipe sideways, or use the arrow keys. Shift+scroll scrolls through lanes when they don't all fit.
-- **Fit to screen**: press `f` to reset to the whole history. Fit is also the minimum zoom, so you can't scroll past either end.
-- **Minimap**: the overview strip at the bottom shows the whole history and your current window. Click or drag it to move the main view.
-- **Axis ticks** refine as you zoom.
+- **Zoom.** Scroll the wheel (or pinch on a trackpad) to zoom the time axis around the cursor. `+` / `-` zoom around the center of the view.
+- **Pan.** Drag, swipe sideways, or use the arrow keys. Shift+scroll scrolls through lanes when they don't all fit.
+- **Fit to screen.** Press `f` to reset to the whole history. Fit is the minimum zoom, so you can't scroll past either end.
+- **Minimap.** The overview strip at the bottom shows the whole history and your current window. Click or drag it to move the main view.
+- **Axis ticks.** Ticks refine as you zoom.
 
 ### Finding branches
 
@@ -57,13 +57,13 @@ Each branch is a lane. It starts at its fork point, runs through its commits, an
 
 Replays the repo's history from the first event to the last. Press `a` or click **Animate** to start; Esc, `a` or ✕ exits.
 
-- **Play / pause**: space or the ▶ button. ⏮ jumps back to the start.
-- **Scrub**: drag the slider to any point in history. The date shows the current playhead time.
-- **Speed**: 0.5×, 1×, 2× or 4×. 1× replays the whole history in about 30 seconds.
-- **Idle gaps are compressed**: busy stretches play at their real proportions, while long quiet periods pass in a short beat.
-- **Follow**: the camera tracks the playhead, keeping it in view as you zoom. Panning by hand turns Follow off; click **Follow** to re-enable it.
-- Branches, commits and merges appear as the playhead reaches them, with a brief flash. The flash is skipped if your OS requests reduced motion.
-- When playback reaches the end it exits to the full static view.
+- **Play / pause.** Press space or click ▶. ⏮ jumps back to the start.
+- **Scrub.** Drag the slider to any point in history. The date shows the playhead time.
+- **Speed.** Choose 0.5×, 1×, 2× or 4×. 1× replays the whole history in about 30 seconds.
+- **Idle gaps.** Busy stretches play in real proportion, and long quiet periods pass in a short beat.
+- **Follow.** The camera tracks the playhead, keeping it in view as you zoom. Panning by hand turns Follow off. Click **Follow** to turn it back on.
+- Branches, commits and merges appear as the playhead reaches them, with a brief flash. If your OS requests reduced motion, the flash is off.
+- At the end, playback exits to the full static view.
 
 ### Shortcuts
 
@@ -90,7 +90,7 @@ Use the **Theme** dropdown to switch UI themes (Pigment, Mac OS 8, Mac OS 8 Mono
 Git doesn't record when branches are created or merged, so Brancher infers it from the commit graph (`packages/core/src/infer/inferTimeline.ts`):
 
 1. The default branch claims its first-parent chain as the trunk.
-2. Merge commits are processed oldest first. Each merged-in parent claims its first-parent chain until it reaches an already-claimed commit — that's the fork point, and its owner is the parent branch. This is what nests branches-of-branches.
+2. Merge commits are processed oldest first. Each merged-in parent claims its first-parent chain until it reaches an already-claimed commit. That commit is the fork point, and its owner is the parent branch. This is how branches nest.
 3. Names come from merge messages (git, GitHub, GitLab, Bitbucket, Azure formats), then live refs. `git pull` merges show as `name (pull)`.
 4. Remaining live refs become open (or, after 90 idle days, abandoned) branches.
 5. Creation time is exact when the local reflog has `branch: Created from`; otherwise it's the first commit's author time (shown as `≈`, with a dotted segment back to the fork point).
