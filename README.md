@@ -70,7 +70,7 @@ Replays the repo's history from the first event to the last. Press `a` or click 
 
 Press `3` or click **3D** to replay the history in 3D. Time runs along the tunnel, the trunk is its central axis, and each branch sits around it at a distance set by its depth. The camera rides just ahead of the playhead and looks back down the tunnel, so recent history is close and older history fades into the distance. Quiet periods are compressed in space as well as time, so the camera moves at a steady speed.
 
-- **Switch.** Use the 2D / 3D toggle on the playback bar, or press `a` and `3`. The playhead, speed and selection carry over.
+- **Switch.** Use the 2D / 3D toggle on the playback bar, or press `a` (2D) or `3` (3D). The playhead, speed, loop and selection carry over, and Follow turns back on.
 - **Orbit.** Drag to orbit and scroll to zoom. Follow stays on.
 - **Pan.** Right-drag or shift-drag. Panning turns Follow off. Click **Follow**, or press `r`, to get back on the axis.
 - **Inspect.** Hover or click a branch or commit to highlight the branch and open its details panel.
@@ -88,9 +88,9 @@ Press `3` or click **3D** to replay the history in 3D. Time runs along the tunne
 | `f` | fit whole history |
 | `/` | search |
 | Enter / shift+Enter | next / previous match |
-| `a` | toggle animate mode |
-| `3` | toggle 3D animate mode |
-| `r` | reset the 3D camera |
+| `a` | toggle 2D animate mode (switches from 3D to 2D) |
+| `3` | toggle 3D animate mode (switches from 2D to 3D) |
+| `r` | re-follow the playhead (3D) |
 | space | play / pause (animate) |
 | Esc | exit animate, or deselect |
 
@@ -120,7 +120,7 @@ Git doesn't record when branches are created or merged, so Brancher infers it fr
 ```
 packages/core    git extraction + inference (pure TS, tested with real fixture repos)
 packages/server  Fastify API: repo resolution, clone cache, GitHub enrichment
-packages/web     React + D3 timeline UI
+packages/web     React + D3 timeline UI, three.js (react-three-fiber) 3D tunnel
 ```
 
-`npm test` runs the core tests; `npm run typecheck` checks all packages.
+`npm test` runs the core and web tests (including the 3D layout); `npm run typecheck` checks all packages.
