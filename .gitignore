@@ -3,3 +3,6 @@ dist/
 .vite/
 *.log
 .env
+
+.DS_Store
+docs/.DS_Store
