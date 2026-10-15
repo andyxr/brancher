@@ -9,7 +9,8 @@ const STEPS = 1000;
 export function PlaybackBar({ clock }: { clock: PlaybackClock }) {
   const playback = useStore((s) => s.playback);
   const speed = useStore((s) => s.speed);
-  const { togglePlay, seek, setSpeed, setFollow, stopAnimate } = useStore();
+  const loop = useStore((s) => s.loop);
+  const { togglePlay, seek, setSpeed, setLoop, setFollow, setDim, stopAnimate } = useStore();
   if (!playback) return null;
 
   const btn = 'btn rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-200 hover:bg-white/10';
@@ -48,6 +49,28 @@ export function PlaybackBar({ clock }: { clock: PlaybackClock }) {
           </button>
         ))}
       </div>
+      <div className="segmented flex items-center rounded-lg border border-white/10 bg-white/5 p-0.5">
+        {(['2d', '3d'] as const).map((d) => (
+          <button
+            key={d}
+            onClick={() => setDim(d)}
+            title={d === '2d' ? 'Flat timeline (a)' : 'Time tunnel (3)'}
+            className={`rounded-md px-1.5 py-0.5 font-mono text-[11px] uppercase transition ${
+              d === playback.dim ? 'on bg-white/15 text-white' : 'text-slate-500 hover:text-slate-200'
+            }`}
+          >
+            {d}
+          </button>
+        ))}
+      </div>
+      <button
+        onClick={() => setLoop(!loop)}
+        className={`${btn} ${loop ? 'lit' : ''}`}
+        title={loop ? 'Looping: replays from the start at the end' : 'Loop playback'}
+        aria-pressed={loop}
+      >
+        Loop
+      </button>
       <button
         onClick={() => setFollow(!playback.follow)}
         className={`${btn} ${playback.follow ? 'lit' : ''}`}

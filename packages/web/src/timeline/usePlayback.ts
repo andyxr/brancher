@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useStore } from '../store.ts';
 import type { PlaybackClock } from './playback.ts';
 
-/** Advances the playhead every animation frame while playing; exits animate at the end, leaving the full static view. */
+/** Advances the playhead every animation frame while playing; at the end it goes back to the start and loops or pauses there. */
 export function usePlayback(clock: PlaybackClock) {
   const playing = useStore((s) => s.playback?.playing ?? false);
 
@@ -13,10 +13,14 @@ export function usePlayback(clock: PlaybackClock) {
     const tick = (now: number) => {
       const dt = (now - last) / 1000;
       last = now;
-      const { playback, speed, seek, stopAnimate } = useStore.getState();
+      const { playback, speed, loop, seek } = useStore.getState();
       if (!playback?.playing) return;
       const progress = Math.min(clock.progressAt(playback.t) + (dt * speed) / clock.duration, 1);
-      if (progress >= 1) return stopAnimate();
+      if (progress >= 1) {
+        useStore.setState({ playback: { ...playback, t: clock.start, playing: loop } });
+        if (loop) raf = requestAnimationFrame(tick);
+        return;
+      }
       seek(clock.timeAt(progress));
       raf = requestAnimationFrame(tick);
     };

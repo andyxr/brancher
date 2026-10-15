@@ -13,7 +13,11 @@ export interface Playback {
   playing: boolean;
   /** Camera keeps the playhead in view; any manual pan turns this off. */
   follow: boolean;
+  /** Flat timeline or the 3D time tunnel; switching keeps the playhead. */
+  dim: Dim;
 }
+
+export type Dim = '2d' | '3d';
 
 const RECENT_KEY = 'brancher.recent';
 
@@ -49,6 +53,8 @@ interface State {
   statusFilter: StatusFilter;
   playback: Playback | null;
   speed: Speed;
+  /** Replay from the start when playback reaches the end, instead of pausing there. */
+  loop: boolean;
 
   open(source: string, githubToken?: string, rememberToken?: boolean): Promise<void>;
   refresh(): Promise<void>;
@@ -59,11 +65,15 @@ interface State {
   setSearch(s: string): void;
   setAuthor(s: string): void;
   toggleStatus(s: keyof StatusFilter): void;
-  startAnimate(): void;
+  startAnimate(dim?: Dim): void;
+  setDim(dim: Dim): void;
+  /** Enter animate in `dim`, switch to it mid-playback, or exit if already there. */
+  toggleAnimate(dim: Dim): void;
   stopAnimate(): void;
   togglePlay(): void;
   seek(t: number): void;
   setSpeed(speed: Speed): void;
+  setLoop(loop: boolean): void;
   setFollow(follow: boolean): void;
 }
 
@@ -80,6 +90,7 @@ export const useStore = create<State>((set, get) => ({
   statusFilter: { merged: true, squashed: true, open: true, abandoned: true },
   playback: null,
   speed: 1,
+  loop: false,
 
   async open(source, githubToken, rememberToken) {
     set({ phase: 'opening', error: undefined, progress: undefined, playback: null });
@@ -135,9 +146,19 @@ export const useStore = create<State>((set, get) => ({
   setAuthor: (author) => set({ author }),
   toggleStatus: (s) => set({ statusFilter: { ...get().statusFilter, [s]: !get().statusFilter[s] } }),
 
-  startAnimate() {
+  startAnimate(dim = '2d') {
     const { timeline } = get();
-    if (timeline) set({ playback: { t: timeline.range.start, playing: true, follow: true } });
+    if (timeline) set({ playback: { t: timeline.range.start, playing: true, follow: true, dim } });
+  },
+  setDim(dim) {
+    const { playback } = get();
+    if (playback && playback.dim !== dim) set({ playback: { ...playback, dim, follow: true } });
+  },
+  toggleAnimate(dim) {
+    const { playback, startAnimate, setDim, stopAnimate } = get();
+    if (!playback) startAnimate(dim);
+    else if (playback.dim === dim) stopAnimate();
+    else setDim(dim);
   },
   stopAnimate: () => set({ playback: null }),
   togglePlay() {
@@ -152,6 +173,7 @@ export const useStore = create<State>((set, get) => ({
     if (playback) set({ playback: { ...playback, t } });
   },
   setSpeed: (speed) => set({ speed }),
+  setLoop: (loop) => set({ loop }),
   setFollow(follow) {
     const { playback } = get();
     if (playback && playback.follow !== follow) set({ playback: { ...playback, follow } });

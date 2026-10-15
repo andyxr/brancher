@@ -63,7 +63,18 @@ Replays the repo's history from the first event to the last. Press `a` or click 
 - **Idle gaps.** Busy stretches play in real proportion, and long quiet periods pass in a short beat.
 - **Follow.** The camera tracks the playhead, keeping it in view as you zoom. Panning by hand turns Follow off. Click **Follow** to turn it back on.
 - Branches, commits and merges appear as the playhead reaches them, with a brief flash. If your OS requests reduced motion, the flash is off.
-- At the end, playback exits to the full static view.
+- **Loop.** Click **Loop** to replay from the start each time playback reaches the end.
+- At the end, without Loop, the playhead returns to the start and pauses. Press play to run it again, or exit animate to see the full static view.
+
+#### 3D time tunnel
+
+Press `3` or click **3D** to replay the history in 3D. Time runs along the tunnel, the trunk is its central axis, and each branch sits around it at a distance set by its depth. The camera rides just ahead of the playhead and looks back down the tunnel, so recent history is close and older history fades into the distance. Quiet periods are compressed in space as well as time, so the camera moves at a steady speed.
+
+- **Switch.** Use the 2D / 3D toggle on the playback bar, or press `a` and `3`. The playhead, speed and selection carry over.
+- **Orbit.** Drag to orbit and scroll to zoom. Follow stays on.
+- **Pan.** Right-drag or shift-drag. Panning turns Follow off. Click **Follow**, or press `r`, to get back on the axis.
+- **Inspect.** Hover or click a branch or commit to highlight the branch and open its details panel.
+- **Labels.** Only the trunk, the focused branch and the branches active near the playhead are labelled.
 
 ### Shortcuts
 
@@ -78,6 +89,8 @@ Replays the repo's history from the first event to the last. Press `a` or click 
 | `/` | search |
 | Enter / shift+Enter | next / previous match |
 | `a` | toggle animate mode |
+| `3` | toggle 3D animate mode |
+| `r` | reset the 3D camera |
 | space | play / pause (animate) |
 | Esc | exit animate, or deselect |
 

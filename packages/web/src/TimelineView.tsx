@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Logo } from './Logo.tsx';
 import { SidePanel } from './SidePanel.tsx';
 import { buildViewModel, useStore, type StatusFilter } from './store.ts';
@@ -8,6 +8,8 @@ import { buildClock } from './timeline/playback.ts';
 import { PlaybackBar } from './timeline/PlaybackBar.tsx';
 import { Timeline, type TimelineHandle } from './timeline/Timeline.tsx';
 import { usePlayback } from './timeline/usePlayback.ts';
+
+const Scene3D = lazy(() => import('./timeline3d/Scene3D.tsx'));
 
 const LEGEND: { key: keyof StatusFilter; label: string; glyph(p: Palette): React.ReactNode }[] = [
   {
@@ -32,7 +34,7 @@ const LEGEND: { key: keyof StatusFilter; label: string; glyph(p: Palette): React
 
 export function TimelineView() {
   const { repo, timeline, warnings, phase, statusFilter, search, author, playback } = useStore();
-  const { refresh, close, setSearch, setAuthor, toggleStatus, setSelected, startAnimate, stopAnimate } = useStore();
+  const { refresh, close, setSearch, setAuthor, toggleStatus, setSelected, toggleAnimate } = useStore();
   const p = usePalette();
   const timelineRef = useRef<TimelineHandle>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -61,7 +63,7 @@ export function TimelineView() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const typing = e.target instanceof HTMLInputElement && e.target.type !== 'range';
-      const { playback, startAnimate, stopAnimate, togglePlay } = useStore.getState();
+      const { playback, stopAnimate, togglePlay, toggleAnimate } = useStore.getState();
       if (e.key === 'Escape') {
         if (typing) (e.target as HTMLInputElement).blur();
         if (playback) stopAnimate();
@@ -75,10 +77,9 @@ export function TimelineView() {
         if (!playback || e.target instanceof HTMLButtonElement) return;
         e.preventDefault();
         togglePlay();
-      } else if (e.key === 'a') {
-        if (playback) stopAnimate();
-        else startAnimate();
-      } else if (e.key === '/') {
+      } else if (e.key === 'a') toggleAnimate('2d');
+      else if (e.key === '3') toggleAnimate('3d');
+      else if (e.key === '/') {
         e.preventDefault();
         searchRef.current?.focus();
       } else if (e.key === 'f') t?.fit();
@@ -159,11 +160,18 @@ export function TimelineView() {
             {phase === 'loading' ? 'Refreshing…' : 'Refresh'}
           </button>
           <button
-            onClick={playback ? stopAnimate : startAnimate}
-            title={playback ? 'Exit animate (a)' : 'Replay the history (a)'}
-            className={`btn rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-200 hover:bg-white/10 ${playback ? 'lit' : ''}`}
+            onClick={() => toggleAnimate('2d')}
+            title={playback?.dim === '2d' ? 'Exit animate (a)' : 'Replay the history (a)'}
+            className={`btn rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-200 hover:bg-white/10 ${playback?.dim === '2d' ? 'lit' : ''}`}
           >
             Animate
+          </button>
+          <button
+            onClick={() => toggleAnimate('3d')}
+            title={playback?.dim === '3d' ? 'Exit 3D (3)' : 'Fly through the history in 3D (3)'}
+            className={`btn rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-200 hover:bg-white/10 ${playback?.dim === '3d' ? 'lit' : ''}`}
+          >
+            3D
           </button>
           <ThemeSwitcher />
         </div>
@@ -179,7 +187,13 @@ export function TimelineView() {
       )}
 
       <main className="relative min-h-0 flex-1">
-        <Timeline ref={timelineRef} data={timeline} vm={vm} clock={clock} />
+        {playback?.dim === '3d' ? (
+          <Suspense fallback={null}>
+            <Scene3D vm={vm} trunkId={timeline.trunkId} clock={clock} />
+          </Suspense>
+        ) : (
+          <Timeline ref={timelineRef} data={timeline} vm={vm} clock={clock} />
+        )}
         <PlaybackBar clock={clock} />
         <SidePanel vm={vm} onFocus={(id) => timelineRef.current?.focus(id)} />
       </main>
