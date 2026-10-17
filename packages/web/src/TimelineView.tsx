@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { fmtDate, fmtDuration } from './format.ts';
 import { Logo } from './Logo.tsx';
 import { SidePanel } from './SidePanel.tsx';
 import { buildViewModel, useStore, type StatusFilter } from './store.ts';
@@ -6,7 +7,7 @@ import { usePalette, type Palette } from './theme.ts';
 import { ThemeSwitcher } from './ThemeSwitcher.tsx';
 import { buildClock } from './timeline/playback.ts';
 import { PlaybackBar } from './timeline/PlaybackBar.tsx';
-import { Timeline, type TimelineHandle } from './timeline/Timeline.tsx';
+import { Timeline, useTimebase, type TimelineHandle } from './timeline/Timeline.tsx';
 import { usePlayback } from './timeline/usePlayback.ts';
 
 const Scene3D = lazy(() => import('./timeline3d/Scene3D.tsx'));
@@ -35,6 +36,7 @@ const LEGEND: { key: keyof StatusFilter; label: string; glyph(p: Palette): React
 export function TimelineView() {
   const { repo, timeline, warnings, phase, statusFilter, search, author, playback } = useStore();
   const { refresh, close, setSearch, setAuthor, toggleStatus, setSelected, toggleAnimate } = useStore();
+  const speed = useStore((st) => st.speed);
   const p = usePalette();
   const timelineRef = useRef<TimelineHandle>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -112,6 +114,15 @@ export function TimelineView() {
           </div>
         </div>
 
+        <div
+          className="acq-status"
+          data-state={!playback ? 'hold' : playback.playing ? 'run' : 'stop'}
+          title={!playback ? 'Showing the full history' : playback.playing ? 'Replaying' : 'Replay paused'}
+        >
+          <span className="acq-led" />
+          {!playback ? 'Hold' : playback.playing ? `Run ${speed}×` : 'Stop'}
+        </div>
+
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <div className="relative">
             <input
@@ -186,7 +197,7 @@ export function TimelineView() {
         </div>
       )}
 
-      <main className="relative min-h-0 flex-1">
+      <main className="plot relative min-h-0 flex-1">
         {playback?.dim === '3d' ? (
           <Suspense fallback={null}>
             <Scene3D vm={vm} trunkId={timeline.trunkId} clock={clock} />
@@ -197,6 +208,45 @@ export function TimelineView() {
         <PlaybackBar clock={clock} />
         <SidePanel vm={vm} onFocus={(id) => timelineRef.current?.focus(id)} />
       </main>
+
+      <footer className="readout-strip" aria-label="Repository measurements">
+        <Readout label="Branches" value={s.branches.toLocaleString()} />
+        <Readout label="Merged" value={s.merged.toLocaleString()} />
+        <Readout label="Open" value={s.open.toLocaleString()} />
+        <Readout label="Commits" value={s.commits.toLocaleString()} />
+        <Readout label="Shown" value={vm.branches.length.toLocaleString()} />
+        {playback?.dim !== '3d' && <TimebaseReadouts />}
+        <Readout label="Span" value={fmtDuration(timeline.range.end - timeline.range.start)} />
+        <Readout label="First" value={fmtDate(timeline.range.start)} />
+        <Readout label="Latest" value={fmtDate(timeline.range.end)} />
+        {playback && <Readout label="Playhead" value={fmtDate(playback.t)} className="trigger" />}
+      </footer>
+    </div>
+  );
+}
+
+/** The 2D display's grid division and visible window; subscribes on its own so zooming doesn't re-render the view. */
+function TimebaseReadouts() {
+  const { division, span } = useTimebase();
+  if (!division) return null;
+  return (
+    <>
+      <Readout label="Timebase" value={`${fmtDuration(division)}/div`} />
+      <Readout label="Window" value={fmtDuration(span)} />
+    </>
+  );
+}
+
+/** Instrument-style label/value pair for the readout strip; trailing letters render as a muted unit. */
+function Readout({ label, value, className = '' }: { label: string; value: string; className?: string }) {
+  const [, num, unit] = /^([\d.,]+)([a-z/]+)$/i.exec(value) ?? [, value, ''];
+  return (
+    <div className={`readout ${className}`}>
+      <span className="readout-label">{label}</span>
+      <span className="readout-value">
+        {num}
+        {unit && <span className="readout-unit">{unit}</span>}
+      </span>
     </div>
   );
 }

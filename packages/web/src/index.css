@@ -110,6 +110,12 @@ body {
 .scroll-thin::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 0.1); border-radius: 4px; }
 .scroll-thin::-webkit-scrollbar-track { background: transparent; }
 
+/* Instrument chrome (measurement strip, acquisition state); only instrument-style themes show it. */
+.readout-strip,
+.acq-status {
+  display: none;
+}
+
 kbd {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -474,4 +480,590 @@ kbd {
   background: #b0b0e0;
   border: 1px solid #404040;
   box-shadow: var(--mac-bevel);
+}
+
+
+/* ============================================================================
+   Oscilloscope theme
+   ----------------------------------------------------------------------------
+   A contemporary digital oscilloscope: black panels told apart by crisp slate
+   borders, a framed plotting display, DIN-style Barlow type with tabular
+   figures, and signal colours used only to identify a channel, measurement or
+   state. The trunk is CH1 yellow, branch statuses take CH2-4, the playhead is
+   the amber trigger marker and engaged controls light in measurement blue.
+   Panels carry small uppercase legends on their top border, like the printed
+   labels around an instrument's controls.
+   ========================================================================= */
+
+[data-theme="oscilloscope"] {
+  --font-sans: "Barlow", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Barlow", "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --scope-bg: #000000;
+  --scope-panel: #000000;
+  --scope-display: #000000;
+  --scope-raised: #0b0f14;
+  --scope-hover: #121820;
+  --scope-rule: #3d4955;
+  --scope-rule-strong: #5b6876;
+  --scope-rule-soft: #222a33;
+  --scope-text: #e1e7ed;
+  --scope-muted: #8995a3;
+  --scope-ch1: #f5d547;
+  --scope-ch2: #35d6e8;
+  --scope-ch3: #e75aa6;
+  --scope-ch4: #71d98b;
+  --scope-measure: #66b8ff;
+  --scope-trigger: #ff9b4a;
+  --scope-error: #f26b6b;
+  --scope-ease: 120ms ease-out;
+
+  --color-white: #e1e7ed;
+
+  --color-slate-200: #e1e7ed;
+  --color-slate-300: #c3ccd6;
+  --color-slate-400: #a3aebb;
+  --color-slate-500: #8995a3;
+  --color-slate-600: #66717e;
+
+  --color-ink-950: #000000;
+  --color-ink-900: #000000;
+  --color-ink-850: #000000;
+  --color-ink-800: #0b0f14;
+  --color-ink-700: #3d4955;
+
+  /* Trunk: CH1 yellow. */
+  --color-cyan-200: #f8e27e;
+  --color-cyan-300: #f5d547;
+  --color-cyan-400: #f5d547;
+  --color-cyan-500: #d9b92c;
+  /* Merged: CH2 cyan. */
+  --color-violet-300: #6fe2ef;
+  --color-violet-400: #35d6e8;
+  /* Squash-merged: CH3 magenta. */
+  --color-fuchsia-200: #f2a3cd;
+  --color-fuchsia-300: #ec7db8;
+  --color-fuchsia-400: #e75aa6;
+  /* Open: CH4 green. */
+  --color-lime-300: #93e3a7;
+  --color-lime-400: #71d98b;
+  /* Errors: overload red. */
+  --color-rose-200: #f8b0b0;
+  --color-rose-300: #f58c8c;
+  --color-rose-400: #f26b6b;
+  --color-rose-500: #f26b6b;
+  /* Warnings: trigger amber. */
+  --color-amber-100: #ffd9b8;
+  --color-amber-200: #ffbd85;
+  --color-amber-400: #ff9b4a;
+
+  /* Tight, near-square geometry everywhere Tailwind rounds corners. */
+  --radius-sm: 1px;
+  --radius-md: 2px;
+  --radius-lg: 2px;
+  --radius-xl: 2px;
+  --radius-2xl: 2px;
+
+  --logo-a: #f5d547;
+  --logo-b: #35d6e8;
+}
+
+[data-theme="oscilloscope"] body {
+  background: var(--scope-bg);
+  color: var(--scope-text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+[data-theme="oscilloscope"] .bg-grid {
+  background: var(--scope-bg);
+}
+
+/* Shared panel legend: a small uppercase label sitting on the panel's top border. */
+[data-theme="oscilloscope"] .minimap::before,
+[data-theme="oscilloscope"] .playback-bar::before,
+[data-theme="oscilloscope"] .keys-hint::before,
+[data-theme="oscilloscope"] form.glass::before {
+  position: absolute;
+  top: -7px;
+  left: 8px;
+  padding: 0 4px;
+  background: var(--scope-bg);
+  color: var(--scope-muted);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+[data-theme="oscilloscope"] .minimap::before { content: "Overview"; }
+[data-theme="oscilloscope"] .playback-bar::before { content: "Acquisition"; }
+[data-theme="oscilloscope"] .keys-hint::before { content: "Keys"; }
+[data-theme="oscilloscope"] form.glass::before { content: "Source"; }
+[data-theme="oscilloscope"] form.glass { position: relative; }
+
+/* The timeline is the instrument's display: a framed screen with corner registration marks. */
+[data-theme="oscilloscope"] .plot {
+  background: var(--scope-display);
+}
+
+[data-theme="oscilloscope"] .plot::after {
+  --mark: var(--scope-rule-strong);
+  content: "";
+  position: absolute;
+  inset: 46px 6px 6px 6px;
+  z-index: 5;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--mark), var(--mark)) top left / 12px 1px no-repeat,
+    linear-gradient(var(--mark), var(--mark)) top left / 1px 12px no-repeat,
+    linear-gradient(var(--mark), var(--mark)) top right / 12px 1px no-repeat,
+    linear-gradient(var(--mark), var(--mark)) top right / 1px 12px no-repeat,
+    linear-gradient(var(--mark), var(--mark)) bottom left / 12px 1px no-repeat,
+    linear-gradient(var(--mark), var(--mark)) bottom left / 1px 12px no-repeat,
+    linear-gradient(var(--mark), var(--mark)) bottom right / 12px 1px no-repeat,
+    linear-gradient(var(--mark), var(--mark)) bottom right / 1px 12px no-repeat;
+}
+
+[data-theme="oscilloscope"] .axis-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+[data-theme="oscilloscope"] .hero-art,
+[data-theme="oscilloscope"] .hero-vignette {
+  display: none;
+}
+
+[data-theme="oscilloscope"] .hero-logo {
+  filter: none;
+}
+
+[data-theme="oscilloscope"] .brand-title {
+  background: none;
+  color: var(--scope-text);
+  -webkit-text-fill-color: var(--scope-text);
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+/* Panels: black, separated by crisp slate borders; no blur or floating shadow. */
+[data-theme="oscilloscope"] .glass {
+  background: var(--scope-panel);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid var(--scope-rule);
+  box-shadow: none;
+}
+
+/* Top instrument bar. */
+[data-theme="oscilloscope"] .titlebar {
+  background: var(--scope-panel);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-bottom: 1px solid var(--scope-rule);
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+[data-theme="oscilloscope"] .titlebar .brand {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+[data-theme="oscilloscope"] .divider {
+  background: var(--scope-rule);
+}
+
+/* Acquisition state: RUN (green), STOP (red) or HOLD (full history, no replay). */
+[data-theme="oscilloscope"] .acq-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 9px;
+  border: 1px solid var(--scope-rule);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--scope-muted);
+}
+
+[data-theme="oscilloscope"] .acq-led {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--scope-muted);
+}
+
+[data-theme="oscilloscope"] .acq-status[data-state="run"] {
+  border-color: var(--scope-ch4);
+  color: var(--scope-ch4);
+}
+[data-theme="oscilloscope"] .acq-status[data-state="run"] .acq-led {
+  background: var(--scope-ch4);
+  box-shadow: 0 0 4px var(--scope-ch4);
+}
+[data-theme="oscilloscope"] .acq-status[data-state="stop"] {
+  border-color: var(--scope-error);
+  color: var(--scope-error);
+}
+[data-theme="oscilloscope"] .acq-status[data-state="stop"] .acq-led {
+  background: var(--scope-error);
+}
+
+/* Side control panel docks flush to the display edge instead of floating. */
+[data-theme="oscilloscope"] .side-panel {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  border-width: 0 0 0 1px;
+  border-color: var(--scope-rule);
+  border-radius: 0;
+}
+
+[data-theme="oscilloscope"] .window-title {
+  /* !important beats the side panel's inline branch-tint gradient. */
+  background: var(--scope-panel) !important;
+  border-color: var(--scope-rule);
+}
+
+[data-theme="oscilloscope"] .side-panel dt {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding-top: 1px;
+}
+
+/* Section headings run into a hairline rule, like a front-panel group label. */
+[data-theme="oscilloscope"] .side-panel h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--scope-muted);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+}
+[data-theme="oscilloscope"] .side-panel h3::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--scope-rule-soft);
+}
+
+[data-theme="oscilloscope"] .tooltip {
+  background: var(--scope-panel);
+  border-color: var(--scope-rule-strong);
+}
+
+[data-theme="oscilloscope"] .status-pill {
+  border-radius: 1px;
+  background: transparent;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* Buttons: softkeys — compact rectangles with uppercase legends; engaged ones light in measurement blue. */
+[data-theme="oscilloscope"] .btn {
+  background: var(--scope-panel);
+  border: 1px solid var(--scope-rule);
+  border-radius: 2px;
+  color: var(--scope-text);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  box-shadow: none;
+  transition: border-color var(--scope-ease), background-color var(--scope-ease), color var(--scope-ease);
+}
+
+[data-theme="oscilloscope"] .btn:hover:not(:disabled) {
+  background: var(--scope-hover);
+  border-color: var(--scope-rule-strong);
+}
+
+[data-theme="oscilloscope"] .btn:active:not(:disabled) {
+  background: var(--scope-raised);
+}
+
+[data-theme="oscilloscope"] .btn:focus-visible,
+[data-theme="oscilloscope"] .segmented button:focus-visible {
+  outline: 1px solid var(--scope-measure);
+  outline-offset: 1px;
+}
+
+[data-theme="oscilloscope"] .btn:disabled {
+  color: var(--scope-muted);
+  opacity: 0.45;
+}
+
+[data-theme="oscilloscope"] .btn.lit,
+[data-theme="oscilloscope"] .btn.lit:hover:not(:disabled) {
+  background: rgb(102 184 255 / 0.1);
+  border-color: var(--scope-measure);
+  color: var(--scope-measure);
+  box-shadow: inset 0 -2px 0 var(--scope-measure);
+}
+
+/* Primary action: flat measurement blue; no gradient. */
+[data-theme="oscilloscope"] .btn-primary {
+  background: var(--scope-measure);
+  border-color: var(--scope-measure);
+  color: #000000;
+  filter: none;
+}
+
+[data-theme="oscilloscope"] .btn-primary:hover:not(:disabled) {
+  background: #85c7ff;
+  border-color: #85c7ff;
+  color: #000000;
+}
+
+/* Fields: black wells; focus draws a blue hairline, not a glow. */
+[data-theme="oscilloscope"] .field {
+  background: var(--scope-display);
+  border: 1px solid var(--scope-rule);
+  border-radius: 2px;
+  color: var(--scope-text);
+  box-shadow: none;
+  transition: border-color var(--scope-ease);
+}
+
+[data-theme="oscilloscope"] .field:focus {
+  border-color: var(--scope-measure);
+  box-shadow: none;
+  --tw-ring-shadow: 0 0 #0000;
+}
+
+[data-theme="oscilloscope"] form.glass .field {
+  border-color: transparent;
+}
+
+[data-theme="oscilloscope"] .theme-switcher {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--scope-muted);
+}
+
+/* Segmented switches: one bordered strip, the selected segment filled. */
+[data-theme="oscilloscope"] .segmented {
+  background: var(--scope-display);
+  border-color: var(--scope-rule);
+  border-radius: 2px;
+  padding: 1px;
+  gap: 1px;
+}
+
+[data-theme="oscilloscope"] .segmented button {
+  border-radius: 1px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: background-color var(--scope-ease), color var(--scope-ease);
+}
+
+[data-theme="oscilloscope"] .segmented button.on {
+  background: var(--scope-hover);
+  color: var(--scope-text);
+  box-shadow: inset 0 -1px 0 var(--scope-rule-strong);
+}
+
+[data-theme="oscilloscope"] .segmented button:hover {
+  background: var(--scope-hover);
+}
+
+[data-theme="oscilloscope"] .progress {
+  height: 2px;
+  background: var(--scope-rule);
+  border-radius: 0;
+}
+
+[data-theme="oscilloscope"] .progress-bar {
+  background: var(--scope-measure);
+  border-radius: 0;
+}
+
+[data-theme="oscilloscope"] .status-dot {
+  box-shadow: none;
+}
+
+[data-theme="oscilloscope"] .chip {
+  background: var(--scope-panel);
+  border-color: var(--scope-rule);
+}
+
+[data-theme="oscilloscope"] .chip:hover {
+  border-color: var(--scope-measure);
+}
+
+[data-theme="oscilloscope"] .modal-backdrop {
+  background: rgb(0 0 0 / 0.75);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+[data-theme="oscilloscope"] .list-pane {
+  background: var(--scope-display);
+}
+
+[data-theme="oscilloscope"] .list-row:hover {
+  background: var(--scope-hover);
+}
+
+[data-theme="oscilloscope"] .warning-bar {
+  background: var(--scope-panel);
+  border-color: var(--scope-rule);
+  box-shadow: inset 2px 0 0 var(--scope-trigger);
+  color: var(--scope-trigger);
+}
+
+[data-theme="oscilloscope"] .keys-hint {
+  color: var(--scope-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+[data-theme="oscilloscope"] kbd {
+  background: var(--scope-display);
+  border-color: var(--scope-rule);
+  border-radius: 1px;
+  color: var(--scope-text);
+  font-size: 10px;
+}
+
+[data-theme="oscilloscope"] .scroll-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+[data-theme="oscilloscope"] .scroll-thin::-webkit-scrollbar-thumb { background: var(--scope-rule); border-radius: 0; }
+
+[data-theme="oscilloscope"] .lane-scroll,
+[data-theme="oscilloscope"] .lane-scroll:hover {
+  width: 6px;
+  background: var(--scope-panel);
+  border: 1px solid var(--scope-rule);
+  border-radius: 0;
+}
+
+[data-theme="oscilloscope"] .lane-scroll-thumb,
+[data-theme="oscilloscope"] .lane-scroll:hover .lane-scroll-thumb {
+  background: var(--scope-rule-strong);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+[data-theme="oscilloscope"] .lane-scroll:hover .lane-scroll-thumb {
+  background: var(--scope-measure);
+}
+
+/* Scrubber: hairline track, small amber trigger handle. */
+[data-theme="oscilloscope"] .playback-scrub::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 0;
+  background: var(--scope-rule);
+}
+[data-theme="oscilloscope"] .playback-scrub::-moz-range-track {
+  height: 2px;
+  border-radius: 0;
+  background: var(--scope-rule);
+}
+[data-theme="oscilloscope"] .playback-scrub::-webkit-slider-thumb {
+  width: 6px;
+  height: 14px;
+  margin-top: -6px;
+  border-radius: 1px;
+  background: var(--scope-trigger);
+  box-shadow: none;
+}
+[data-theme="oscilloscope"] .playback-scrub::-moz-range-thumb {
+  width: 6px;
+  height: 14px;
+  border-radius: 1px;
+  background: var(--scope-trigger);
+  box-shadow: none;
+}
+[data-theme="oscilloscope"] .playback-scrub:focus-visible {
+  outline: 1px solid var(--scope-measure);
+  outline-offset: 2px;
+}
+
+/* Bottom measurement strip: muted labels over prominent tabular values, hairline separators. */
+[data-theme="oscilloscope"] .readout-strip {
+  display: flex;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  background: var(--scope-panel);
+  border-top: 1px solid var(--scope-rule);
+}
+
+/* Strip legend in its own cell, like a panel section label. */
+[data-theme="oscilloscope"] .readout-strip::before {
+  content: "Meas";
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  border-right: 1px solid var(--scope-rule);
+  color: var(--scope-muted);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+[data-theme="oscilloscope"] .readout {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 16px 6px;
+  border-right: 1px solid var(--scope-rule-soft);
+}
+
+[data-theme="oscilloscope"] .readout-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--scope-muted);
+}
+
+[data-theme="oscilloscope"] .readout-value {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--scope-text);
+  white-space: nowrap;
+}
+
+[data-theme="oscilloscope"] .readout-unit {
+  margin-left: 2px;
+  font-size: 12px;
+  color: var(--scope-muted);
+}
+
+[data-theme="oscilloscope"] .readout.trigger .readout-label,
+[data-theme="oscilloscope"] .readout.trigger .readout-value {
+  color: var(--scope-trigger);
+}
+
+@media (max-width: 640px) {
+  [data-theme="oscilloscope"] .side-panel {
+    width: 100%;
+    border-left-width: 0;
+  }
+  [data-theme="oscilloscope"] .readout {
+    padding: 4px 10px;
+  }
+  [data-theme="oscilloscope"] .readout-value {
+    font-size: 14px;
+  }
 }

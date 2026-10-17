@@ -1,5 +1,6 @@
 import type { Branch, Timeline as TimelineData } from '@brancher/core/browser';
 import { scaleTime } from 'd3';
+import { create } from 'zustand';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { fmtDate } from '../format.ts';
 import { useStore, type ViewModel } from '../store.ts';
@@ -41,6 +42,9 @@ interface Props {
 }
 
 const toDate = (sec: number) => new Date(sec * 1000);
+
+/** Major grid division and visible time span, in seconds, for instrument themes' readouts. */
+export const useTimebase = create<{ division: number; span: number }>(() => ({ division: 0, span: 0 }));
 
 export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ data, vm, clock }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -225,6 +229,16 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
   const visibleScale = scaleTime().domain([x.invert(0), x.invert(size.w)]).range([0, size.w]);
   const ticks = visibleScale.ticks(Math.max(2, Math.floor(size.w / 130)));
   const tickFmt = visibleScale.tickFormat();
+  const minorTicks = p.instrument
+    ? visibleScale.ticks(ticks.length * 5).filter((t) => !ticks.some((m) => +m === +t))
+    : [];
+  const division = ticks.length > 1 ? (+ticks[1] - +ticks[0]) / 1000 : 0;
+  const span = (x.invert(size.w).getTime() - x.invert(0).getTime()) / 1000;
+  useEffect(() => {
+    if (p.instrument) useTimebase.setState({ division, span });
+  }, [p.instrument, division, span]);
+  // Phosphor trace: the beam draws each line during playback, with bloom around it.
+  const beam = playback !== null && p.instrument && !reducedMotion;
 
   const yOf = (id: string, fallback: number) => {
     const b = vm.byId.get(id);
@@ -254,15 +268,32 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
       onPointerLeave={() => setPointer(null)}
     >
       <svg width={size.w} height={size.h} className="absolute inset-0">
+        {beam && (
+          <defs>
+            {/* User-space region: a bounding-box filter would collapse on horizontal lines. */}
+            <filter id="phosphor" filterUnits="userSpaceOnUse" x={0} y={0} width={size.w} height={size.h}>
+              <feGaussianBlur in="SourceGraphic" stdDeviation={1.4} result="core" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation={4.5} result="bloom" />
+              <feMerge>
+                <feMergeNode in="bloom" />
+                <feMergeNode in="core" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+        )}
         {/* Time grid */}
         <g>
+          {minorTicks.map((t) => (
+            <line key={+t} x1={x(t)} x2={x(t)} y1={AXIS_H} y2={size.h} stroke={p.ink} strokeOpacity={p.gridOpacity * 0.4} />
+          ))}
           {ticks.map((t) => (
             <line key={+t} x1={x(t)} x2={x(t)} y1={AXIS_H} y2={size.h} stroke={p.ink} strokeOpacity={p.gridOpacity} />
           ))}
           <line x1={xs(end)} x2={xs(end)} y1={AXIS_H} y2={size.h} stroke={p.trunk} strokeOpacity={0.25} strokeDasharray="3 5" />
         </g>
 
-        <g>
+        <g filter={beam ? 'url(#phosphor)' : undefined}>
           {visible.map((b) => (
             <BranchShape
               key={b.id}
@@ -274,6 +305,7 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
               end={end}
               at={at}
               flashAge={flashAge}
+              beam={beam}
               dim={(lineage !== null && !lineage.has(b.id)) || (vm.matches !== null && !vm.matches.has(b.id) && b.status !== 'trunk')}
               focused={b.id === hoveredId || b.id === selectedId}
               showLabel={b.id === focusId || (vm.matches?.has(b.id) ?? false)}
@@ -288,10 +320,13 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
         <g>
           <rect x={0} y={0} width={size.w} height={AXIS_H} fill={p.axisBg} fillOpacity={p.axisBgOpacity} />
           <line x1={0} x2={size.w} y1={AXIS_H} y2={AXIS_H} stroke={p.ink} strokeOpacity={p.gridOpacity * 2} />
+          {minorTicks.map((t) => (
+            <line key={+t} x1={x(t)} x2={x(t)} y1={AXIS_H - 3} y2={AXIS_H} stroke={p.ink} strokeOpacity={0.2} />
+          ))}
           {ticks.map((t) => (
             <g key={+t} transform={`translate(${x(t)},0)`}>
               <line y1={AXIS_H - 6} y2={AXIS_H} stroke={p.ink} strokeOpacity={0.3} />
-              <text y={AXIS_H - 14} textAnchor="middle" className="fill-slate-400 font-mono text-[11px]">
+              <text y={AXIS_H - 14} textAnchor="middle" className="axis-label fill-slate-400 font-mono text-[11px]">
                 {tickFmt(t)}
               </text>
             </g>
@@ -301,8 +336,11 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
           </text>
         </g>
 
+        {p.instrument && <EdgeMarkers vm={vm} trunkId={data.trunkId} selectedId={selectedId} laneY={laneY} p={p} />}
+
         {playback && <Playhead x={xs(playback.t)} t={playback.t} height={size.h} p={p} />}
       </svg>
+
 
       {hovered && pointer && !dragging && <Tooltip branch={hovered} vm={vm} x={pointer.x} y={pointer.y} width={size.w} />}
 
@@ -438,6 +476,8 @@ interface ShapeProps {
   /** 0..1 age of an event's pop ring, or null when it shouldn't flash. Null outside playback. */
   flashAge: ((t: number) => number | null) | null;
   dim: boolean;
+  /** Draw like a vector display's beam: a bright spot and afterglow at each growing trace's head. */
+  beam: boolean;
   focused: boolean;
   showLabel: boolean;
   onEnter(): void;
@@ -450,7 +490,7 @@ function sCurve(x1: number, y1: number, x2: number, y2: number) {
   return `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`;
 }
 
-function BranchShape({ b, vm, p, xs, laneY, end, at, flashAge, dim, focused, showLabel, onEnter, onLeave, onClick }: ShapeProps) {
+function BranchShape({ b, vm, p, xs, laneY, end, at, flashAge, beam, dim, focused, showLabel, onEnter, onLeave, onClick }: ShapeProps) {
   const color = branchColor(b, p);
   const y = laneY(b.lane);
   const isTrunk = b.status === 'trunk';
@@ -483,7 +523,10 @@ function BranchShape({ b, vm, p, xs, laneY, end, at, flashAge, dim, focused, sho
   const xBarTo = Math.min(xBarEnd, xAt);
   const xTail = live ? Math.min(xs(end), xAt) : xBarTo;
 
-  const width = isTrunk ? 4 : 2.5;
+  const width = p.instrument ? (isTrunk ? 2 : 1.5) : isTrunk ? 4 : 2.5;
+  // The beam sits wherever this branch's trace is still being drawn.
+  const xHead = live ? xTail : xBarTo;
+  const drawing = beam && created && xHead < (live ? xs(end) : xBarEnd) && xHead > xCreated;
   const opacity = dim ? 0.12 : b.status === 'abandoned' ? 0.5 : 1;
   const stroke = isTrunk ? p.trunk : color;
   // Connectors are context, not content: keep them quiet unless this branch is in focus.
@@ -593,7 +636,50 @@ function BranchShape({ b, vm, p, xs, laneY, end, at, flashAge, dim, focused, sho
         </text>
       )}
 
+      {drawing && <Beam x={xHead} y={y} from={xCreated} width={width} color={stroke} />}
+
       {flashAge && <Flashes b={b} y={y} xs={xs} xCreated={xCreated} merges={merges} flashAge={flashAge} p={p} />}
+    </g>
+  );
+}
+
+/** Electron beam at a trace's head: white-hot spot with a short afterglow behind it. */
+function Beam({ x, y, from, width, color }: { x: number; y: number; from: number; width: number; color: string }) {
+  const tail = (len: number) => Math.max(x - len, from);
+  return (
+    <g pointerEvents="none" strokeLinecap="round">
+      <line x1={tail(56)} x2={x} y1={y} y2={y} stroke="#ffffff" strokeOpacity={0.18} strokeWidth={width} />
+      <line x1={tail(24)} x2={x} y1={y} y2={y} stroke="#ffffff" strokeOpacity={0.4} strokeWidth={width} />
+      <line x1={tail(8)} x2={x} y1={y} y2={y} stroke="#ffffff" strokeOpacity={0.8} strokeWidth={width} />
+      <circle cx={x} cy={y} r={5} fill={color} fillOpacity={0.35} />
+      <circle cx={x} cy={y} r={2} fill="#ffffff" />
+    </g>
+  );
+}
+
+/** Channel-style markers on the display's left edge: which lane is the trunk, and which is selected. */
+function EdgeMarkers({
+  vm,
+  trunkId,
+  selectedId,
+  laneY,
+  p,
+}: {
+  vm: ViewModel;
+  trunkId: string;
+  selectedId: string | null;
+  laneY: (lane: number) => number;
+  p: Palette;
+}) {
+  const marks = [trunkId, selectedId !== trunkId ? selectedId : null].flatMap((id) => {
+    const b = id ? vm.byId.get(id) : undefined;
+    return b ? [{ id: b.id, y: laneY(b.lane), color: branchColor(b, p) }] : [];
+  });
+  return (
+    <g pointerEvents="none">
+      {marks.map((m) => (
+        <path key={m.id} d={`M0,${m.y - 5} H6 L11,${m.y} L6,${m.y + 5} H0Z`} fill={m.color} />
+      ))}
     </g>
   );
 }
