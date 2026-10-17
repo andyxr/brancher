@@ -10,9 +10,14 @@ import {
   Object3D,
   Plane,
   SphereGeometry,
+  Vector2,
   Vector3,
   type Group,
 } from 'three';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { fmtDate } from '../format.ts';
 import { useStore, type ViewModel } from '../store.ts';
@@ -36,6 +41,10 @@ const MAX_LABELS = 8;
 const COMMIT_R = 0.45;
 /** Overlay key for the playhead's date; git ref names can't contain spaces, so it never collides with a branch id. */
 const DATE_KEY = 'playhead date';
+/** Most traces that can be mid-draw at once; extra heads go undrawn. */
+const MAX_BEAMS = 256;
+/** Length of a beam's afterglow tail, in world units behind its head. */
+const BEAM_TAIL = 5;
 
 interface Props {
   vm: ViewModel;
@@ -52,6 +61,9 @@ export default function Scene3D({ vm, trunkId, clock }: Props) {
   // Everything beyond the playhead is clipped; useFrame moves this plane instead of rebuilding geometry.
   const clip = useMemo(() => new Plane(new Vector3(0, 0, -1), 0), []);
   const overlay = useRef<HTMLDivElement>(null);
+  // Vector-display look: bloom over the whole scene and a bright beam at each trace's head.
+  const reducedMotion = usePrefersReducedMotion();
+  const phosphor = p.instrument && !reducedMotion;
 
   return (
     <div className={`absolute inset-0 ${hovered ? 'cursor-pointer' : 'cursor-grab'}`}>
@@ -65,7 +77,9 @@ export default function Scene3D({ vm, trunkId, clock }: Props) {
         onPointerMissed={() => setSelected(null)}
       >
         <fog attach="fog" args={[p.labelHalo, 110, 600]} />
-        <Tunnel layout={layout} vm={vm} trunkId={trunkId} clock={clock} clip={clip} p={p} overlay={overlay} />
+        {phosphor && <color attach="background" args={[p.labelHalo]} />}
+        {phosphor && <Phosphor />}
+        <Tunnel layout={layout} vm={vm} trunkId={trunkId} clock={clock} clip={clip} p={p} overlay={overlay} phosphor={phosphor} />
       </Canvas>
       <div ref={overlay} className="pointer-events-none absolute inset-0 overflow-hidden" />
     </div>
@@ -77,9 +91,10 @@ interface TunnelProps extends Props {
   clip: Plane;
   p: Palette;
   overlay: RefObject<HTMLDivElement | null>;
+  phosphor: boolean;
 }
 
-function Tunnel({ layout, vm, trunkId, clock, clip, p, overlay }: TunnelProps) {
+function Tunnel({ layout, vm, trunkId, clock, clip, p, overlay, phosphor }: TunnelProps) {
   const ringRadius = layout.maxRadius + 1.5;
   const reducedMotion = usePrefersReducedMotion();
   const colors = useBranchColors(vm, p);
@@ -94,6 +109,7 @@ function Tunnel({ layout, vm, trunkId, clock, clip, p, overlay }: TunnelProps) {
       <Strands layout={layout} vm={vm} colors={colors} trunkId={trunkId} clip={clip} p={p} zNow={zNow} />
       <Commits layout={layout} colors={colors} clip={clip} zNow={zNow} />
       {!reducedMotion && <Flashes layout={layout} clock={clock} p={p} zNow={zNow} />}
+      {phosphor && <Beams layout={layout} colors={colors} zNow={zNow} />}
       <Trunk p={p} zNow={zNow} />
       <PlayheadRing radius={ringRadius} p={p} zNow={zNow} />
       <Labels layout={layout} vm={vm} trunkId={trunkId} clock={clock} p={p} overlay={overlay} ringRadius={ringRadius} />
@@ -156,9 +172,9 @@ function Strands({ layout, colors, trunkId, clip, p, zNow }: PartProps & { color
     () =>
       buildStrands(
         layout.branches.filter((b) => b.id !== trunkId).map((b) => ({ id: b.id, path: b.path, color: colors.get(b.id)! })),
-        { width: 2, opacity: 1, clip },
+        { width: p.instrument ? 1.5 : 2, opacity: 1, clip },
       ),
-    [layout, trunkId, colors, clip],
+    [layout, trunkId, colors, clip, p.instrument],
   );
   const merges = useMemo(
     () => buildStrands(layout.merges.map((m) => ({ id: m.branchId, path: m.path, color: colors.get(m.branchId)! })), { width: 1.5, opacity: 0.5, clip }),
@@ -171,7 +187,7 @@ function Strands({ layout, colors, trunkId, clip, p, zNow }: PartProps & { color
     if (!own) return null;
     const color = colors.get(own.id)!.clone().lerp(new Color(p.ink), 0.15);
     const paths = [own.path, ...layout.merges.filter((m) => m.branchId === own.id).map((m) => m.path)];
-    return buildStrands(paths.map((path) => ({ id: own.id, path, color })), { width: 4, opacity: 1, clip });
+    return buildStrands(paths.map((path) => ({ id: own.id, path, color })), { width: p.instrument ? 3 : 4, opacity: 1, clip });
   }, [layout, focusId, trunkId, colors, p, clip]);
 
   useDispose(branches.object);
@@ -256,6 +272,94 @@ function Flashes({ layout, clock, p, zNow }: Omit<PartProps, 'vm'> & { clock: Pl
   });
 
   return <primitive object={mesh} raycast={() => null} />;
+}
+
+/** Renders through bloom instead of straight to the canvas; useFrame priority 1 takes over r3f's render. */
+function Phosphor() {
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+  const camera = useThree((s) => s.camera);
+  const size = useThree((s) => s.size);
+  const composer = useMemo(() => {
+    const c = new EffectComposer(gl);
+    c.addPass(new RenderPass(scene, camera));
+    c.addPass(new UnrealBloomPass(new Vector2(256, 256), 0.85, 0.35, 0));
+    c.addPass(new OutputPass());
+    return c;
+  }, [gl, scene, camera]);
+  useEffect(() => {
+    composer.setPixelRatio(gl.getPixelRatio());
+    composer.setSize(size.width, size.height);
+  }, [composer, gl, size]);
+  useEffect(() => () => composer.dispose(), [composer]);
+  useFrame(() => composer.render(), 1);
+  return null;
+}
+
+/** Electron beam at the head of every trace still being drawn: a white-hot spot with a short afterglow tail. */
+function Beams({ layout, colors, zNow }: Pick<PartProps, 'layout' | 'zNow'> & { colors: Colors }) {
+  const traces = useMemo(
+    () => [...layout.branches.map((b) => ({ id: b.id, path: b.path })), ...layout.merges.map((m) => ({ id: m.branchId, path: m.path }))],
+    [layout],
+  );
+  const [core, tail] = useMemo(() => {
+    const make = (r: number, opacity: number) => {
+      const m = new InstancedMesh(
+        new SphereGeometry(r, 10, 8),
+        new MeshBasicMaterial({ transparent: opacity < 1, opacity, depthWrite: false, toneMapped: false }),
+        MAX_BEAMS,
+      );
+      m.setColorAt(0, new Color('#ffffff'));
+      m.frustumCulled = false;
+      m.count = 0;
+      return m;
+    };
+    return [make(0.32, 1), make(1, 0.6)];
+  }, []);
+  useDispose(core);
+  useDispose(tail);
+  const [o, c, white] = useMemo(() => [new Object3D(), new Color(), new Color('#ffffff')], []);
+
+  useFrame(() => {
+    const z = zNow();
+    let n = 0;
+    for (const t of traces) {
+      if (n === MAX_BEAMS) break;
+      const last = t.path[t.path.length - 1];
+      if (t.path[0].z >= z || last.z <= z) continue;
+      const head = pointAt(t.path, z);
+      const back = pointAt(t.path, Math.max(z - BEAM_TAIL, t.path[0].z));
+      c.copy(colors.get(t.id) ?? white).lerp(white, 0.5);
+
+      o.position.set(head.x, head.y, head.z);
+      o.rotation.set(0, 0, 0);
+      o.scale.setScalar(1);
+      o.updateMatrix();
+      core.setMatrixAt(n, o.matrix);
+      core.setColorAt(n, white);
+
+      const len = Math.hypot(head.x - back.x, head.y - back.y, head.z - back.z);
+      o.position.set((head.x + back.x) / 2, (head.y + back.y) / 2, (head.z + back.z) / 2);
+      o.lookAt(head.x, head.y, head.z);
+      o.scale.set(0.16, 0.16, Math.max(len / 2, 0.2));
+      o.updateMatrix();
+      tail.setMatrixAt(n, o.matrix);
+      tail.setColorAt(n, c);
+      n++;
+    }
+    for (const m of [core, tail]) {
+      m.count = n;
+      m.instanceMatrix.needsUpdate = true;
+      if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    }
+  });
+
+  return (
+    <>
+      <primitive object={tail} raycast={() => null} />
+      <primitive object={core} raycast={() => null} />
+    </>
+  );
 }
 
 /** The trunk is the tunnel's spine: a solid rod that grows with the playhead. */
