@@ -110,8 +110,9 @@ body {
 .scroll-thin::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 0.1); border-radius: 4px; }
 .scroll-thin::-webkit-scrollbar-track { background: transparent; }
 
-/* Bottom measurement strip; only instrument-style themes show it. */
-.readout-strip {
+/* Instrument chrome (measurement strip, acquisition state); only instrument-style themes show it. */
+.readout-strip,
+.acq-status {
   display: none;
 }
 
@@ -485,22 +486,27 @@ kbd {
 /* ============================================================================
    Oscilloscope theme
    ----------------------------------------------------------------------------
-   A contemporary digital oscilloscope: near-black graphite surfaces, a recessed
-   plotting display, one-pixel borders, 2px corners and signal colours used only
-   to identify a channel, measurement or state. The trunk is CH1 yellow, branch
-   statuses take CH2-4, the playhead is the amber trigger marker and engaged
-   controls light in measurement blue.
+   A contemporary digital oscilloscope: black panels told apart by crisp slate
+   borders, a framed plotting display, DIN-style Barlow type with tabular
+   figures, and signal colours used only to identify a channel, measurement or
+   state. The trunk is CH1 yellow, branch statuses take CH2-4, the playhead is
+   the amber trigger marker and engaged controls light in measurement blue.
+   Panels carry small uppercase legends on their top border, like the printed
+   labels around an instrument's controls.
    ========================================================================= */
 
 [data-theme="oscilloscope"] {
-  --font-sans: "Inter", "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+  --font-sans: "Barlow", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Barlow", "Inter", ui-sans-serif, system-ui, sans-serif;
 
-  --scope-bg: #090c10;
-  --scope-panel: #151a20;
-  --scope-display: #05080c;
-  --scope-rule: #303841;
-  --scope-grid: #29313a;
+  --scope-bg: #000000;
+  --scope-panel: #000000;
+  --scope-display: #000000;
+  --scope-raised: #0b0f14;
+  --scope-hover: #121820;
+  --scope-rule: #3d4955;
+  --scope-rule-strong: #5b6876;
+  --scope-rule-soft: #222a33;
   --scope-text: #e1e7ed;
   --scope-muted: #8995a3;
   --scope-ch1: #f5d547;
@@ -520,11 +526,11 @@ kbd {
   --color-slate-500: #8995a3;
   --color-slate-600: #66717e;
 
-  --color-ink-950: #05080c;
-  --color-ink-900: #090c10;
-  --color-ink-850: #151a20;
-  --color-ink-800: #1b2129;
-  --color-ink-700: #303841;
+  --color-ink-950: #000000;
+  --color-ink-900: #000000;
+  --color-ink-850: #000000;
+  --color-ink-800: #0b0f14;
+  --color-ink-700: #3d4955;
 
   /* Trunk: CH1 yellow. */
   --color-cyan-200: #f8e27e;
@@ -555,8 +561,8 @@ kbd {
   --radius-sm: 1px;
   --radius-md: 2px;
   --radius-lg: 2px;
-  --radius-xl: 3px;
-  --radius-2xl: 3px;
+  --radius-xl: 2px;
+  --radius-2xl: 2px;
 
   --logo-a: #f5d547;
   --logo-b: #35d6e8;
@@ -566,20 +572,64 @@ kbd {
   background: var(--scope-bg);
   color: var(--scope-text);
   font-variant-numeric: tabular-nums;
-}
-
-[data-theme="oscilloscope"] .font-mono {
-  font-variant-numeric: tabular-nums slashed-zero;
+  letter-spacing: 0.01em;
 }
 
 [data-theme="oscilloscope"] .bg-grid {
   background: var(--scope-bg);
 }
 
-/* The timeline is the instrument's display: recessed, near-black, framed by a hairline. */
+/* Shared panel legend: a small uppercase label sitting on the panel's top border. */
+[data-theme="oscilloscope"] .minimap::before,
+[data-theme="oscilloscope"] .playback-bar::before,
+[data-theme="oscilloscope"] .keys-hint::before,
+[data-theme="oscilloscope"] form.glass::before {
+  position: absolute;
+  top: -7px;
+  left: 8px;
+  padding: 0 4px;
+  background: var(--scope-bg);
+  color: var(--scope-muted);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+[data-theme="oscilloscope"] .minimap::before { content: "Overview"; }
+[data-theme="oscilloscope"] .playback-bar::before { content: "Acquisition"; }
+[data-theme="oscilloscope"] .keys-hint::before { content: "Keys"; }
+[data-theme="oscilloscope"] form.glass::before { content: "Source"; }
+[data-theme="oscilloscope"] form.glass { position: relative; }
+
+/* The timeline is the instrument's display: a framed screen with corner registration marks. */
 [data-theme="oscilloscope"] .plot {
   background: var(--scope-display);
-  box-shadow: inset 0 1px 0 var(--scope-rule);
+}
+
+[data-theme="oscilloscope"] .plot::after {
+  --mark: var(--scope-rule-strong);
+  content: "";
+  position: absolute;
+  inset: 46px 6px 6px 6px;
+  z-index: 5;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--mark), var(--mark)) top left / 12px 1px no-repeat,
+    linear-gradient(var(--mark), var(--mark)) top left / 1px 12px no-repeat,
+    linear-gradient(var(--mark), var(--mark)) top right / 12px 1px no-repeat,
+    linear-gradient(var(--mark), var(--mark)) top right / 1px 12px no-repeat,
+    linear-gradient(var(--mark), var(--mark)) bottom left / 12px 1px no-repeat,
+    linear-gradient(var(--mark), var(--mark)) bottom left / 1px 12px no-repeat,
+    linear-gradient(var(--mark), var(--mark)) bottom right / 12px 1px no-repeat,
+    linear-gradient(var(--mark), var(--mark)) bottom right / 1px 12px no-repeat;
+}
+
+[data-theme="oscilloscope"] .axis-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 [data-theme="oscilloscope"] .hero-art,
@@ -595,12 +645,13 @@ kbd {
   background: none;
   color: var(--scope-text);
   -webkit-text-fill-color: var(--scope-text);
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
 }
 
-/* Panels: flat graphite, one-pixel slate border, no blur or floating shadow. */
+/* Panels: black, separated by crisp slate borders; no blur or floating shadow. */
 [data-theme="oscilloscope"] .glass {
   background: var(--scope-panel);
   backdrop-filter: none;
@@ -609,24 +660,63 @@ kbd {
   box-shadow: none;
 }
 
+/* Top instrument bar. */
 [data-theme="oscilloscope"] .titlebar {
   background: var(--scope-panel);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  border-color: var(--scope-rule);
+  border-bottom: 1px solid var(--scope-rule);
   padding-top: 6px;
   padding-bottom: 6px;
 }
 
 [data-theme="oscilloscope"] .titlebar .brand {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
 }
 
 [data-theme="oscilloscope"] .divider {
   background: var(--scope-rule);
+}
+
+/* Acquisition state: RUN (green), STOP (red) or HOLD (full history, no replay). */
+[data-theme="oscilloscope"] .acq-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 9px;
+  border: 1px solid var(--scope-rule);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--scope-muted);
+}
+
+[data-theme="oscilloscope"] .acq-led {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--scope-muted);
+}
+
+[data-theme="oscilloscope"] .acq-status[data-state="run"] {
+  border-color: var(--scope-ch4);
+  color: var(--scope-ch4);
+}
+[data-theme="oscilloscope"] .acq-status[data-state="run"] .acq-led {
+  background: var(--scope-ch4);
+  box-shadow: 0 0 4px var(--scope-ch4);
+}
+[data-theme="oscilloscope"] .acq-status[data-state="stop"] {
+  border-color: var(--scope-error);
+  color: var(--scope-error);
+}
+[data-theme="oscilloscope"] .acq-status[data-state="stop"] .acq-led {
+  background: var(--scope-error);
 }
 
 /* Side control panel docks flush to the display edge instead of floating. */
@@ -635,6 +725,7 @@ kbd {
   right: 0;
   bottom: 0;
   border-width: 0 0 0 1px;
+  border-color: var(--scope-rule);
   border-radius: 0;
 }
 
@@ -644,41 +735,65 @@ kbd {
   border-color: var(--scope-rule);
 }
 
+[data-theme="oscilloscope"] .side-panel dt {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding-top: 1px;
+}
+
+/* Section headings run into a hairline rule, like a front-panel group label. */
 [data-theme="oscilloscope"] .side-panel h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   color: var(--scope-muted);
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+}
+[data-theme="oscilloscope"] .side-panel h3::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--scope-rule-soft);
 }
 
 [data-theme="oscilloscope"] .tooltip {
   background: var(--scope-panel);
-  border-color: var(--scope-rule);
+  border-color: var(--scope-rule-strong);
 }
 
 [data-theme="oscilloscope"] .status-pill {
-  border-radius: 2px;
+  border-radius: 1px;
   background: transparent;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
   font-size: 10px;
+  font-weight: 600;
 }
 
-/* Buttons: compact rectangles; engaged state lights the edge in measurement blue. */
+/* Buttons: softkeys — compact rectangles with uppercase legends; engaged ones light in measurement blue. */
 [data-theme="oscilloscope"] .btn {
   background: var(--scope-panel);
   border: 1px solid var(--scope-rule);
   border-radius: 2px;
   color: var(--scope-text);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   box-shadow: none;
   transition: border-color var(--scope-ease), background-color var(--scope-ease), color var(--scope-ease);
 }
 
 [data-theme="oscilloscope"] .btn:hover:not(:disabled) {
-  background: #1b2129;
-  border-color: #4a5562;
+  background: var(--scope-hover);
+  border-color: var(--scope-rule-strong);
 }
 
 [data-theme="oscilloscope"] .btn:active:not(:disabled) {
-  background: var(--scope-display);
+  background: var(--scope-raised);
 }
 
 [data-theme="oscilloscope"] .btn:focus-visible,
@@ -700,22 +815,21 @@ kbd {
   box-shadow: inset 0 -2px 0 var(--scope-measure);
 }
 
-/* Primary action: flat, outlined in the measurement colour; no gradient. */
+/* Primary action: flat measurement blue; no gradient. */
 [data-theme="oscilloscope"] .btn-primary {
   background: var(--scope-measure);
   border-color: var(--scope-measure);
-  color: var(--scope-display);
-  font-weight: 600;
+  color: #000000;
   filter: none;
 }
 
 [data-theme="oscilloscope"] .btn-primary:hover:not(:disabled) {
   background: #85c7ff;
   border-color: #85c7ff;
-  color: var(--scope-display);
+  color: #000000;
 }
 
-/* Fields: recessed near-black wells; focus draws a blue hairline, not a glow. */
+/* Fields: black wells; focus draws a blue hairline, not a glow. */
 [data-theme="oscilloscope"] .field {
   background: var(--scope-display);
   border: 1px solid var(--scope-rule);
@@ -737,8 +851,9 @@ kbd {
 
 [data-theme="oscilloscope"] .theme-switcher {
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.14em;
   font-size: 10px;
+  font-weight: 600;
   color: var(--scope-muted);
 }
 
@@ -753,17 +868,20 @@ kbd {
 
 [data-theme="oscilloscope"] .segmented button {
   border-radius: 1px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   transition: background-color var(--scope-ease), color var(--scope-ease);
 }
 
 [data-theme="oscilloscope"] .segmented button.on {
-  background: #1f262e;
+  background: var(--scope-hover);
   color: var(--scope-text);
-  box-shadow: inset 0 -1px 0 var(--scope-muted);
+  box-shadow: inset 0 -1px 0 var(--scope-rule-strong);
 }
 
 [data-theme="oscilloscope"] .segmented button:hover {
-  background: #1b2129;
+  background: var(--scope-hover);
 }
 
 [data-theme="oscilloscope"] .progress {
@@ -791,7 +909,7 @@ kbd {
 }
 
 [data-theme="oscilloscope"] .modal-backdrop {
-  background: rgb(5 8 12 / 0.7);
+  background: rgb(0 0 0 / 0.75);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
@@ -801,7 +919,7 @@ kbd {
 }
 
 [data-theme="oscilloscope"] .list-row:hover {
-  background: #1b2129;
+  background: var(--scope-hover);
 }
 
 [data-theme="oscilloscope"] .warning-bar {
@@ -813,6 +931,8 @@ kbd {
 
 [data-theme="oscilloscope"] .keys-hint {
   color: var(--scope-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 [data-theme="oscilloscope"] kbd {
@@ -820,6 +940,7 @@ kbd {
   border-color: var(--scope-rule);
   border-radius: 1px;
   color: var(--scope-text);
+  font-size: 10px;
 }
 
 [data-theme="oscilloscope"] .scroll-thin::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -835,7 +956,7 @@ kbd {
 
 [data-theme="oscilloscope"] .lane-scroll-thumb,
 [data-theme="oscilloscope"] .lane-scroll:hover .lane-scroll-thumb {
-  background: #4a5562;
+  background: var(--scope-rule-strong);
   border-radius: 0;
   box-shadow: none;
 }
@@ -884,33 +1005,48 @@ kbd {
   border-top: 1px solid var(--scope-rule);
 }
 
+/* Strip legend in its own cell, like a panel section label. */
+[data-theme="oscilloscope"] .readout-strip::before {
+  content: "Meas";
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  border-right: 1px solid var(--scope-rule);
+  color: var(--scope-muted);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
 [data-theme="oscilloscope"] .readout {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  padding: 5px 14px 6px;
-  border-right: 1px solid var(--scope-rule);
+  padding: 5px 16px 6px;
+  border-right: 1px solid var(--scope-rule-soft);
 }
 
 [data-theme="oscilloscope"] .readout-label {
   font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--scope-muted);
 }
 
 [data-theme="oscilloscope"] .readout-value {
   font-family: var(--font-mono);
-  font-size: 15px;
-  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: 17px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
   color: var(--scope-text);
   white-space: nowrap;
 }
 
 [data-theme="oscilloscope"] .readout-unit {
   margin-left: 2px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--scope-muted);
 }
 
@@ -928,6 +1064,6 @@ kbd {
     padding: 4px 10px;
   }
   [data-theme="oscilloscope"] .readout-value {
-    font-size: 13px;
+    font-size: 14px;
   }
 }

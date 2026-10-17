@@ -29,8 +29,11 @@ export interface Palette {
   /** Grid, axis rule and tick strokes. */
   ink: string;
   gridOpacity: number;
-  /** Fainter minor divisions between the time grid's major ticks. */
-  minorGrid: boolean;
+  /**
+   * Instrument display: minor grid divisions, timebase readout, edge markers, thin traces,
+   * and a phosphor beam that draws the traces during playback.
+   */
+  instrument: boolean;
   /** Minimap viewport window. */
   window: string;
   /** Animate mode's playhead rule and date pill. */
@@ -62,7 +65,7 @@ const MAC_OS_8: Palette = {
   axisBgOpacity: 1,
   ink: '#000000',
   gridOpacity: 0.08,
-  minorGrid: false,
+  instrument: false,
   window: '#000000',
   playhead: '#000000',
   playheadText: '#ffffff',
@@ -81,7 +84,7 @@ const PALETTES: Record<ThemeId, Palette> = {
     axisBgOpacity: 0.94,
     ink: '#f3eee4',
     gridOpacity: 0.045,
-    minorGrid: false,
+    instrument: false,
     window: '#f3eee4',
     playhead: '#d4a24c',
     playheadText: '#12110e',
@@ -120,16 +123,16 @@ const PALETTES: Record<ThemeId, Palette> = {
   oscilloscope: {
     // Trunk is channel 1; the playhead is the trigger marker; the minimap window is a measurement cursor.
     trunk: '#f5d547',
-    hole: '#05080c',
-    labelHalo: '#05080c',
-    axisBg: '#090c10',
+    hole: '#000000',
+    labelHalo: '#000000',
+    axisBg: '#000000',
     axisBgOpacity: 1,
     ink: '#e1e7ed',
     gridOpacity: 0.1,
-    minorGrid: true,
+    instrument: true,
     window: '#66b8ff',
     playhead: '#ff9b4a',
-    playheadText: '#090c10',
+    playheadText: '#000000',
     flash: '#e1e7ed',
     glow: false,
     branch: {

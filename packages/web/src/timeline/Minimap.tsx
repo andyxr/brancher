@@ -49,7 +49,7 @@ export function Minimap({ vm, data, base, view, size, laneH, top, playhead, onNa
 
   return (
     <div
-      className="glass absolute bottom-4 left-4 rounded-xl p-1.5 shadow-2xl shadow-black/50"
+      className="glass minimap absolute bottom-4 left-4 rounded-xl p-1.5 shadow-2xl shadow-black/50"
       onPointerDown={(e) => e.stopPropagation()}
       onWheel={(e) => e.stopPropagation()}
     >
