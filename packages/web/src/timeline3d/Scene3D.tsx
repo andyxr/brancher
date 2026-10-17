@@ -284,7 +284,7 @@ function Phosphor() {
     const c = new EffectComposer(gl);
     c.addPass(new RenderPass(scene, camera));
     // Light bloom with a threshold: the white beam heads glow, traces get only a faint halo.
-    c.addPass(new UnrealBloomPass(new Vector2(256, 256), 0.4, 0.15, 0.2));
+    c.addPass(new UnrealBloomPass(new Vector2(256, 256), 0.25, 0.1, 0.3));
     c.addPass(new OutputPass());
     return c;
   }, [gl, scene, camera]);
@@ -451,7 +451,7 @@ function Labels({ layout, vm, trunkId, clock, p, overlay, ringRadius }: Omit<Par
       let n = nodes.get(key);
       if (!n) {
         n = document.createElement('div');
-        n.className = 'absolute left-0 top-0 whitespace-nowrap rounded px-1.5 py-px font-mono text-[10px] tabular-nums';
+        n.className = 'absolute left-0 top-0 whitespace-nowrap rounded px-3 py-0.5 font-mono text-[20px] tabular-nums';
         root.appendChild(n);
         nodes.set(key, n);
       }
