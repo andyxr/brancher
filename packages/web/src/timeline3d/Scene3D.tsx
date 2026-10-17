@@ -283,7 +283,8 @@ function Phosphor() {
   const composer = useMemo(() => {
     const c = new EffectComposer(gl);
     c.addPass(new RenderPass(scene, camera));
-    c.addPass(new UnrealBloomPass(new Vector2(256, 256), 0.85, 0.35, 0));
+    // Light bloom with a threshold: the white beam heads glow, traces get only a faint halo.
+    c.addPass(new UnrealBloomPass(new Vector2(256, 256), 0.4, 0.15, 0.2));
     c.addPass(new OutputPass());
     return c;
   }, [gl, scene, camera]);
@@ -314,7 +315,7 @@ function Beams({ layout, colors, zNow }: Pick<PartProps, 'layout' | 'zNow'> & { 
       m.count = 0;
       return m;
     };
-    return [make(0.32, 1), make(1, 0.6)];
+    return [make(0.32, 1), make(1, 0.45)];
   }, []);
   useDispose(core);
   useDispose(tail);
