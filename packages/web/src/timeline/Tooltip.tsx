@@ -26,7 +26,7 @@ export function Tooltip({ branch: b, vm, x, y, width }: { branch: Branch; vm: Vi
       <div className="mb-2 flex items-center gap-2">
         <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color, boxShadow: `0 0 10px ${color}` }} />
         <span className="truncate font-mono text-[13px] font-medium text-white">{b.name}</span>
-        <span className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] ring-1 ${STATUS_CLASS[b.status]}`}>{STATUS_LABEL[b.status]}</span>
+        <span className={`status-pill ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] ring-1 ${STATUS_CLASS[b.status]}`}>{STATUS_LABEL[b.status]}</span>
       </div>
       <dl className="grid grid-cols-[72px_1fr] gap-x-2 gap-y-1 text-slate-300">
         {parent && (

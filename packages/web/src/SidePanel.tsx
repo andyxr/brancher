@@ -39,7 +39,7 @@ export function SidePanel({ vm, onFocus }: { vm: ViewModel; onFocus(id: string):
   const commits = [...b.commits].reverse();
 
   return (
-    <aside className="glass window scroll-thin absolute right-4 top-4 bottom-4 z-30 flex w-[360px] flex-col overflow-hidden rounded-2xl shadow-2xl shadow-black/60">
+    <aside className="glass window side-panel scroll-thin absolute right-4 top-4 bottom-4 z-30 flex w-[360px] flex-col overflow-hidden rounded-2xl shadow-2xl shadow-black/60">
       <div className="window-title border-b border-white/5 p-4" style={{ background: `linear-gradient(135deg, color-mix(in oklab, ${color} 14%, transparent), transparent 70%)` }}>
         <div className="flex items-start gap-2">
           <h2 className="min-w-0 flex-1 break-words font-mono text-[15px] font-semibold text-white">{b.name}</h2>
@@ -48,7 +48,7 @@ export function SidePanel({ vm, onFocus }: { vm: ViewModel; onFocus(id: string):
           </button>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
-          <span className={`rounded-full px-2 py-0.5 ring-1 ${STATUS_CLASS[b.status]}`}>{STATUS_LABEL[b.status]}</span>
+          <span className={`status-pill rounded-full px-2 py-0.5 ring-1 ${STATUS_CLASS[b.status]}`}>{STATUS_LABEL[b.status]}</span>
           {b.nameSource !== 'ref' && (
             <span className="text-slate-500">
               {b.nameSource === 'synthetic' ? 'name unknown (branch deleted)' : `name from ${b.nameSource === 'pr' ? 'pull request' : 'merge message'}`}

@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { fmtDate, fmtDuration } from './format.ts';
 import { Logo } from './Logo.tsx';
 import { SidePanel } from './SidePanel.tsx';
 import { buildViewModel, useStore, type StatusFilter } from './store.ts';
@@ -186,7 +187,7 @@ export function TimelineView() {
         </div>
       )}
 
-      <main className="relative min-h-0 flex-1">
+      <main className="plot relative min-h-0 flex-1">
         {playback?.dim === '3d' ? (
           <Suspense fallback={null}>
             <Scene3D vm={vm} trunkId={timeline.trunkId} clock={clock} />
@@ -197,6 +198,32 @@ export function TimelineView() {
         <PlaybackBar clock={clock} />
         <SidePanel vm={vm} onFocus={(id) => timelineRef.current?.focus(id)} />
       </main>
+
+      <footer className="readout-strip" aria-label="Repository measurements">
+        <Readout label="Branches" value={s.branches.toLocaleString()} />
+        <Readout label="Merged" value={s.merged.toLocaleString()} />
+        <Readout label="Open" value={s.open.toLocaleString()} />
+        <Readout label="Commits" value={s.commits.toLocaleString()} />
+        <Readout label="Shown" value={vm.branches.length.toLocaleString()} />
+        <Readout label="Span" value={fmtDuration(timeline.range.end - timeline.range.start)} />
+        <Readout label="First" value={fmtDate(timeline.range.start)} />
+        <Readout label="Latest" value={fmtDate(timeline.range.end)} />
+        {playback && <Readout label="Playhead" value={fmtDate(playback.t)} className="trigger" />}
+      </footer>
+    </div>
+  );
+}
+
+/** Instrument-style label/value pair for the readout strip; trailing letters render as a muted unit. */
+function Readout({ label, value, className = '' }: { label: string; value: string; className?: string }) {
+  const [, num, unit] = /^([\d.,]+)([a-z]+)$/i.exec(value) ?? [, value, ''];
+  return (
+    <div className={`readout ${className}`}>
+      <span className="readout-label">{label}</span>
+      <span className="readout-value">
+        {num}
+        {unit && <span className="readout-unit">{unit}</span>}
+      </span>
     </div>
   );
 }

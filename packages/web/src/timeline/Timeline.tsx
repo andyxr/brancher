@@ -225,6 +225,9 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
   const visibleScale = scaleTime().domain([x.invert(0), x.invert(size.w)]).range([0, size.w]);
   const ticks = visibleScale.ticks(Math.max(2, Math.floor(size.w / 130)));
   const tickFmt = visibleScale.tickFormat();
+  const minorTicks = p.minorGrid
+    ? visibleScale.ticks(ticks.length * 5).filter((t) => !ticks.some((m) => +m === +t))
+    : [];
 
   const yOf = (id: string, fallback: number) => {
     const b = vm.byId.get(id);
@@ -256,6 +259,9 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
       <svg width={size.w} height={size.h} className="absolute inset-0">
         {/* Time grid */}
         <g>
+          {minorTicks.map((t) => (
+            <line key={+t} x1={x(t)} x2={x(t)} y1={AXIS_H} y2={size.h} stroke={p.ink} strokeOpacity={p.gridOpacity * 0.4} />
+          ))}
           {ticks.map((t) => (
             <line key={+t} x1={x(t)} x2={x(t)} y1={AXIS_H} y2={size.h} stroke={p.ink} strokeOpacity={p.gridOpacity} />
           ))}
@@ -288,6 +294,9 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
         <g>
           <rect x={0} y={0} width={size.w} height={AXIS_H} fill={p.axisBg} fillOpacity={p.axisBgOpacity} />
           <line x1={0} x2={size.w} y1={AXIS_H} y2={AXIS_H} stroke={p.ink} strokeOpacity={p.gridOpacity * 2} />
+          {minorTicks.map((t) => (
+            <line key={+t} x1={x(t)} x2={x(t)} y1={AXIS_H - 3} y2={AXIS_H} stroke={p.ink} strokeOpacity={0.2} />
+          ))}
           {ticks.map((t) => (
             <g key={+t} transform={`translate(${x(t)},0)`}>
               <line y1={AXIS_H - 6} y2={AXIS_H} stroke={p.ink} strokeOpacity={0.3} />
