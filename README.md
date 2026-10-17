@@ -40,6 +40,7 @@ Each branch is a lane. It starts at its fork point, runs through its commits, an
 ### Zoom and pan
 
 - **Zoom.** Scroll the wheel (or pinch on a trackpad) to zoom the time axis around the cursor. `+` / `-` zoom around the center of the view.
+- **Box zoom.** Shift+drag to draw a box. On release, the view zooms in on both axes so the box fills it: the time axis stretches and the lanes spread apart. Press `f` to reset both.
 - **Pan.** Drag, swipe sideways, or use the arrow keys. Shift+scroll scrolls through lanes when they don't all fit.
 - **Fit to screen.** Press `f` to reset to the whole history. Fit is the minimum zoom, so you can't scroll past either end.
 - **Minimap.** The overview strip at the bottom shows the whole history and your current window. Click or drag it to move the main view.
@@ -83,6 +84,7 @@ Press `3` or click **3D** to replay the history in 3D. Time runs along the tunne
 | scroll | zoom |
 | shift+scroll | scroll lanes |
 | drag | pan |
+| shift+drag | zoom to box |
 | arrows | pan |
 | `+` / `-` | zoom in / out |
 | `f` | fit whole history |

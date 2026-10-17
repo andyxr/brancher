@@ -18,12 +18,15 @@ const LEFT = 32;
 const RIGHT = 80;
 const BOTTOM = 92; // room for the minimap
 const FORK_W = 14;
+const MAX_KY = 8;
 const PANEL_W = 380; // SidePanel width + margin
 /** How long an event's pop ring lasts, in seconds of 1× playback. */
 const FLASH_S = 0.7;
 
 export interface View {
   k: number;
+  /** Lane spacing multiplier. Only box zoom raises it; fit resets it. */
+  ky: number;
   tx: number;
   ty: number;
 }
@@ -49,7 +52,7 @@ export const useTimebase = create<{ division: number; span: number }>(() => ({ d
 export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ data, vm, clock }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 1200, h: 700 });
-  const [view, setView] = useState<View>({ k: 1, tx: 0, ty: 0 });
+  const [view, setView] = useState<View>({ k: 1, ky: 1, tx: 0, ty: 0 });
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null);
   const hoveredId = useStore((s) => s.hoveredId);
   const selectedId = useStore((s) => s.selectedId);
@@ -78,9 +81,11 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
     return base.copy().range([r0 * view.k + view.tx, r1 * view.k + view.tx]);
   }, [base, view.k, view.tx]);
   const xs = useCallback((sec: number) => x(toDate(sec)), [x]);
-  const laneY = useCallback((lane: number) => TOP + lane * LANE_H + view.ty, [view.ty]);
+  const laneH = LANE_H * view.ky;
+  const laneY = useCallback((lane: number) => TOP + lane * laneH + view.ty, [laneH, view.ty]);
 
-  const contentH = TOP + vm.laneCount * LANE_H + BOTTOM;
+  const contentHAt = useCallback((ky: number) => TOP + vm.laneCount * LANE_H * ky + BOTTOM, [vm.laneCount]);
+  const contentH = contentHAt(view.ky);
   const overflows = contentH > size.h + 1;
   const maxK = Math.max(4, (end - start + 2 * pad) / 1800);
 
@@ -90,10 +95,11 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
       const [r0, r1] = base.range();
       // Keep at least part of the timeline on screen.
       const tx = Math.min(Math.max(v.tx, size.w * 0.5 - r1 * k), size.w * 0.5 - r0 * k);
-      const ty = Math.min(Math.max(v.ty, Math.min(0, size.h - contentH)), 0);
-      return { k, tx, ty };
+      const ky = Math.min(Math.max(v.ky, 1), MAX_KY);
+      const ty = Math.min(Math.max(v.ty, Math.min(0, size.h - contentHAt(ky))), 0);
+      return { k, ky, tx, ty };
     },
-    [base, maxK, size.w, size.h, contentH],
+    [base, maxK, size.w, size.h, contentHAt],
   );
   const update = useCallback((fn: (v: View) => View) => setView((v) => clamp(fn(v))), [clamp]);
   // Panning by hand means the user wants to look elsewhere, so the camera stops chasing the playhead.
@@ -114,7 +120,7 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
   useImperativeHandle(
     ref,
     () => ({
-      fit: () => setView({ k: 1, tx: 0, ty: 0 }),
+      fit: () => setView({ k: 1, ky: 1, tx: 0, ty: 0 }),
       zoomBy: (f) => zoomAt(size.w / 2, f),
       panBy: (dx, dy) => {
         if (dx) unfollow();
@@ -131,10 +137,10 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
         const w = Math.max(size.w - PANEL_W, size.w / 2);
         const k = Math.min(Math.max(((w - LEFT - RIGHT) * 0.6) / Math.max(span, 1), 1), maxK);
         const mid = (base(toDate(s)) + base(toDate(e))) / 2;
-        setView(clamp({ k, tx: w / 2 - mid * k, ty: size.h / 2 - (TOP + b.lane * LANE_H) }));
+        update((v) => ({ ...v, k, tx: w / 2 - mid * k, ty: size.h / 2 - (TOP + b.lane * LANE_H * v.ky) }));
       },
     }),
-    [vm.byId, base, size, maxK, clamp, update, zoomAt],
+    [vm.byId, base, size, maxK, update, zoomAt],
   );
 
   // Wheel zooms the time axis; shift+wheel scrolls lanes; horizontal trackpad swipes pan.
@@ -157,18 +163,36 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
     return () => el.removeEventListener('wheel', onWheel);
   }, [update, zoomAt]);
 
-  const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  // Plain drag pans; shift+drag draws a box to zoom into. Box coordinates are container-relative.
+  const drag = useRef<
+    { mode: 'pan'; x: number; y: number; moved: boolean } | { mode: 'box'; x0: number; y0: number; moved: boolean } | null
+  >(null);
+  const [box, setBox] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   // Set on pointerup so the click that ends a drag doesn't select a branch.
   const justDragged = useRef(false);
+  const local = (e: React.PointerEvent) => {
+    const rect = containerRef.current!.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
-    drag.current = { x: e.clientX, y: e.clientY, moved: false };
+    const at = local(e);
+    drag.current = e.shiftKey
+      ? { mode: 'box', x0: at.x, y0: at.y, moved: false }
+      : { mode: 'pan', x: e.clientX, y: e.clientY, moved: false };
   };
   const onPointerMove = (e: React.PointerEvent) => {
-    const rect = containerRef.current!.getBoundingClientRect();
-    setPointer({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    const at = local(e);
+    setPointer(at);
     const d = drag.current;
     if (!d) return;
+    if (d.mode === 'box') {
+      if (!d.moved && Math.hypot(at.x - d.x0, at.y - d.y0) < 3) return;
+      if (!d.moved) (e.currentTarget as Element).setPointerCapture(e.pointerId);
+      d.moved = true;
+      setBox({ x0: d.x0, y0: d.y0, x1: at.x, y1: at.y });
+      return;
+    }
     const dx = e.clientX - d.x;
     const dy = e.clientY - d.y;
     if (!d.moved && Math.hypot(dx, dy) < 3) return;
@@ -182,13 +206,30 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
     d.y = e.clientY;
     update((v) => ({ ...v, tx: v.tx + dx, ty: v.ty + dy }));
   };
+  const zoomToBox = (b: { x0: number; y0: number; x1: number; y1: number }) => {
+    const [l, r] = [Math.min(b.x0, b.x1), Math.max(b.x0, b.x1)];
+    if (r - l < 8) return;
+    unfollow();
+    // Fit the box into the band between the axis and the minimap; clamp may cap either scale short of a full fit.
+    const [bandTop, bandBottom] = [AXIS_H, size.h - BOTTOM];
+    const boxH = Math.max(Math.abs(b.y1 - b.y0), 1);
+    update((v) => {
+      const k = Math.min((v.k * size.w * 0.95) / (r - l), maxK);
+      const midX = ((l + r) / 2 - v.tx) / v.k;
+      const ky = Math.min(Math.max((v.ky * (bandBottom - bandTop) * 0.9) / boxH, 1), MAX_KY);
+      const midY = ((b.y0 + b.y1) / 2 - TOP - v.ty) / v.ky;
+      return { k, ky, tx: size.w / 2 - midX * k, ty: (bandTop + bandBottom) / 2 - TOP - midY * ky };
+    });
+  };
   const onPointerUp = (e: React.PointerEvent) => {
     const d = drag.current;
     drag.current = null;
     justDragged.current = d?.moved ?? false;
+    if (d?.mode === 'box' && box) zoomToBox(box);
+    setBox(null);
     if (d && !d.moved && (e.target as Element).closest('[data-branch]') === null) setSelected(null);
   };
-  const dragging = drag.current?.moved ?? false;
+  const dragging = drag.current?.mode === 'pan' && drag.current.moved;
 
   // Ancestors + descendants of the focused branch stay lit; the rest dims.
   const focusId = hoveredId ?? selectedId;
@@ -261,7 +302,7 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
   return (
     <div
       ref={containerRef}
-      className={`relative h-full w-full select-none overflow-hidden ${dragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+      className={`relative h-full w-full select-none overflow-hidden ${box ? 'cursor-crosshair' : dragging ? 'cursor-grabbing' : 'cursor-grab'}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -339,10 +380,23 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
         {p.instrument && <EdgeMarkers vm={vm} trunkId={data.trunkId} selectedId={selectedId} laneY={laneY} p={p} />}
 
         {playback && <Playhead x={xs(playback.t)} t={playback.t} height={size.h} p={p} />}
+
+        {box && (
+          <rect
+            x={Math.min(box.x0, box.x1)}
+            y={Math.min(box.y0, box.y1)}
+            width={Math.abs(box.x1 - box.x0)}
+            height={Math.abs(box.y1 - box.y0)}
+            fill={p.playhead}
+            fillOpacity={0.08}
+            stroke={p.playhead}
+            strokeDasharray="4 3"
+            pointerEvents="none"
+          />
+        )}
       </svg>
 
-
-      {hovered && pointer && !dragging && <Tooltip branch={hovered} vm={vm} x={pointer.x} y={pointer.y} width={size.w} />}
+      {hovered && pointer && !dragging && !box &&<Tooltip branch={hovered} vm={vm} x={pointer.x} y={pointer.y} width={size.w} />}
 
       <Minimap
         vm={vm}
@@ -350,7 +404,7 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
         base={base}
         view={view}
         size={size}
-        laneH={LANE_H}
+        laneH={laneH}
         top={TOP}
         playhead={playback?.t ?? null}
         onNavigate={(cx, cy) => {
@@ -377,6 +431,9 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
           </span>
         )}
         <span><kbd>drag</kbd> pan</span>
+        <span>
+          <kbd>shift</kbd>+<kbd>drag</kbd> box zoom
+        </span>
         <span><kbd>f</kbd> fit</span>
         <span><kbd>/</kbd> search</span>
         {playback ? (
