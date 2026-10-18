@@ -24,6 +24,8 @@ export interface Palette {
   hole: string;
   /** Halo behind branch labels so they stay legible over crossing lines. */
   labelHalo: string;
+  /** Branch label text; unset draws labels in the branch's own color. */
+  labelInk?: string;
   axisBg: string;
   axisBgOpacity: number;
   /** Grid, axis rule and tick strokes. */
@@ -61,6 +63,7 @@ const MAC_OS_8: Palette = {
   trunk: '#2a4ea0',
   hole: '#ffffff',
   labelHalo: '#ffffff',
+  labelInk: '#000000',
   axisBg: '#dcdcdc',
   axisBgOpacity: 1,
   ink: '#000000',

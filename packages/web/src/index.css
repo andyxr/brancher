@@ -237,6 +237,11 @@ kbd {
   background: repeating-conic-gradient(#b4b3c6 0 25%, #bebdd0 0 50%) 0 0 / 4px 4px;
 }
 
+/* Timeline plot: a darker dither so lanes and labels stand out. */
+[data-theme="mac_os_8"] .plot {
+  background: repeating-conic-gradient(#a2a1b7 0 25%, #acabc0 0 50%) 0 0 / 4px 4px;
+}
+
 [data-theme="mac_os_8"] .hero-art,
 [data-theme="mac_os_8"] .hero-vignette {
   display: none;
@@ -603,6 +608,11 @@ kbd {
 [data-theme="oscilloscope"] form.glass { position: relative; }
 
 /* The timeline is the instrument's display: a framed screen with corner registration marks. */
+/* Light-on-black text reads thinner than it is; medium weight keeps labels from dissolving. */
+[data-theme="oscilloscope"] .branch-label {
+  font-weight: 500;
+}
+
 [data-theme="oscilloscope"] .plot {
   background: var(--scope-display);
 }

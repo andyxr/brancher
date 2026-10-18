@@ -438,7 +438,7 @@ function Labels({ layout, vm, trunkId, clock, p, overlay, ringRadius }: Omit<Par
       if (!b || !path || path[0].z > z) continue;
       const at = pointAt(path, z);
       const strong = id === hoveredId || id === selectedId || id === trunkId;
-      labels.set(id, { text: b.name, x: at.x, y: at.y + 0.9, z: at.z, color: branchColor(b, p), background: p.labelHalo, strong });
+      labels.set(id, { text: b.name, x: at.x, y: at.y + 0.9, z: at.z, color: p.labelInk ?? branchColor(b, p), background: p.labelHalo, strong });
     }
 
     for (const [key, n] of nodes) {

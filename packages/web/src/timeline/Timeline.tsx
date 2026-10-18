@@ -1,6 +1,7 @@
 import type { Branch, Timeline as TimelineData } from '@brancher/core/browser';
 import { scaleTime } from 'd3';
 import { create } from 'zustand';
+import { createPortal } from 'react-dom';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { fmtDate } from '../format.ts';
 import { useStore, type ViewModel } from '../store.ts';
@@ -167,6 +168,7 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
   const drag = useRef<
     { mode: 'pan'; x: number; y: number; moved: boolean } | { mode: 'box'; x0: number; y0: number; moved: boolean } | null
   >(null);
+  const [labelLayer, setLabelLayer] = useState<SVGGElement | null>(null);
   const [box, setBox] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   // Set on pointerup so the click that ends a drag doesn't select a branch.
   const justDragged = useRef(false);
@@ -350,12 +352,16 @@ export const Timeline = forwardRef<TimelineHandle, Props>(function Timeline({ da
               dim={(lineage !== null && !lineage.has(b.id)) || (vm.matches !== null && !vm.matches.has(b.id) && b.status !== 'trunk')}
               focused={b.id === hoveredId || b.id === selectedId}
               showLabel={b.id === focusId || (vm.matches?.has(b.id) ?? false)}
+              labelLayer={labelLayer}
               onEnter={() => !drag.current && setHovered(b.id)}
               onLeave={() => setHovered(null)}
               onClick={() => !justDragged.current && setSelected(b.id)}
             />
           ))}
         </g>
+
+        {/* Labels sit above every branch's strokes so crossing lines never cut through them. */}
+        <g ref={setLabelLayer} />
 
         {/* Axis */}
         <g>
@@ -537,6 +543,8 @@ interface ShapeProps {
   beam: boolean;
   focused: boolean;
   showLabel: boolean;
+  /** Shared layer above all strokes that this branch's label portals into. */
+  labelLayer: SVGGElement | null;
   onEnter(): void;
   onLeave(): void;
   onClick(): void;
@@ -547,7 +555,7 @@ function sCurve(x1: number, y1: number, x2: number, y2: number) {
   return `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`;
 }
 
-function BranchShape({ b, vm, p, xs, laneY, end, at, flashAge, beam, dim, focused, showLabel, onEnter, onLeave, onClick }: ShapeProps) {
+function BranchShape({ b, vm, p, xs, laneY, end, at, flashAge, beam, dim, focused, showLabel, labelLayer, onEnter, onLeave, onClick }: ShapeProps) {
   const color = branchColor(b, p);
   const y = laneY(b.lane);
   const isTrunk = b.status === 'trunk';
@@ -686,12 +694,23 @@ function BranchShape({ b, vm, p, xs, laneY, end, at, flashAge, beam, dim, focuse
         <path d={`M${xLast - 4},${y - 4} L${xLast + 4},${y + 4} M${xLast + 4},${y - 4} L${xLast - 4},${y + 4}`} stroke={color} strokeWidth={1.8} />
       )}
 
-      {labelVisible && (
-        <text x={labelX} y={y - 8} className="font-mono text-[11px]" fill={color} style={{ paintOrder: 'stroke', stroke: p.labelHalo, strokeWidth: 4 }}>
-          {b.name}
-          {b.pr && <tspan fillOpacity={0.6}> #{b.pr.number}</tspan>}
-        </text>
-      )}
+      {labelVisible &&
+        labelLayer &&
+        createPortal(
+          // Only dimming fades the label; an abandoned branch's dashed, faded strokes already show its status.
+          <text
+            x={labelX}
+            y={y - 8}
+            opacity={dim ? 0.12 : 1}
+            className="branch-label font-mono text-[14px] transition-opacity duration-150"
+            fill={p.labelInk ?? color}
+            style={{ paintOrder: 'stroke', stroke: p.labelHalo, strokeWidth: 4 }}
+          >
+            {b.name}
+            {b.pr && <tspan> #{b.pr.number}</tspan>}
+          </text>,
+          labelLayer,
+        )}
 
       {drawing && <Beam x={xHead} y={y} from={xCreated} width={width} color={stroke} />}
 
