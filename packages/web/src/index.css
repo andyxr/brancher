@@ -1077,3 +1077,383 @@ kbd {
     font-size: 14px;
   }
 }
+
+/* ============================================================================
+   Liquid Glass theme (dark), ported from Boarder's Liquid Glass.
+   ----------------------------------------------------------------------------
+   Smoked glass panes over a drifting night aurora. Glass only reads as glass with something behind it, so the flat ground becomes a slowly moving colour field plus a faint dot lattice that shows the bend at a pane's edge. Panes get backdrop blur + saturation, a gradient rim (border-box background) and inset highlights for thickness. In Chromium only (`data-glass-refract`, set in theme.ts) the top bar adds an SVG displacement lens (#lg-refract, LiquidGlassFilter.tsx).
+   ========================================================================= */
+
+[data-theme="liquid_glass"] {
+  color-scheme: dark;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", system-ui, sans-serif;
+
+  --lg-ground: #0b0d1f;
+  --lg-text: #eef0ff;
+  --lg-muted: #a3a8cf;
+  --lg-tint: rgb(26 30 62 / 0.46);
+  --lg-tint-strong: rgb(34 38 76 / 0.66);
+  --lg-blur: blur(22px) saturate(185%);
+  --lg-blur-soft: blur(12px) saturate(160%);
+  --lg-edge: inset 0 1px 0 rgb(255 255 255 / 0.2), inset 0 -1px 0 rgb(255 255 255 / 0.05), inset 0 0 18px rgb(255 255 255 / 0.04);
+  --lg-drop: 0 18px 48px -12px rgb(0 0 0 / 0.6), 0 2px 6px rgb(0 0 0 / 0.35);
+  --lg-rim: rgb(255 255 255 / 0.4), rgb(255 255 255 / 0.06), rgb(255 255 255 / 0.02), rgb(255 255 255 / 0.24);
+  --lg-button-drop: 0 4px 12px -4px rgb(0 0 0 / 0.5);
+  --lg-pop: rgb(22 25 54 / 0.88);
+  --lg-glint: rgb(255 255 255 / 0.16);
+  --lg-veil: rgb(4 5 16 / 0.5);
+  --lg-control: rgb(255 255 255 / 0.08);
+  --lg-control-hover: rgb(255 255 255 / 0.14);
+  --lg-control-rim: rgb(255 255 255 / 0.16);
+  --lg-control-sink: inset 0 1px 2px rgb(0 0 0 / 0.35);
+  --lg-refract-tint: rgb(18 21 48 / 0.4);
+  --lg-divider: rgb(255 255 255 / 0.08);
+  --lg-scroll: rgb(255 255 255 / 0.2);
+  --lg-accent: #8ca8ff;
+  --lg-focus: rgb(140 168 255 / 0.8);
+  --lg-select: rgb(124 156 255 / 0.35);
+
+  --color-white: #eef0ff;
+
+  --color-slate-200: #e2e5fb;
+  --color-slate-300: #c6cae9;
+  --color-slate-400: #a3a8cf;
+  --color-slate-500: #868bb4;
+  --color-slate-600: #6a6f98;
+
+  --color-ink-950: #0b0d1f;
+  --color-ink-900: #11142b;
+  --color-ink-850: #161a38;
+  --color-ink-800: #1e2246;
+  --color-ink-700: #2c3160;
+
+  /* Trunk / primary accent: periwinkle. */
+  --color-cyan-200: #d4deff;
+  --color-cyan-300: #b4c6ff;
+  --color-cyan-400: #8ca8ff;
+  --color-cyan-500: #6f8ff0;
+  /* Merged: lavender. */
+  --color-violet-300: #c3b9ff;
+  --color-violet-400: #a99bff;
+  /* Squash-merged: rose. */
+  --color-fuchsia-200: #ffc7e3;
+  --color-fuchsia-300: #ffaad5;
+  --color-fuchsia-400: #ff8fc8;
+  /* Open: mint. */
+  --color-lime-300: #8fe2bd;
+  --color-lime-400: #5fd3a0;
+  /* Errors: coral. */
+  --color-rose-200: #ffc2b8;
+  --color-rose-300: #ff9f8f;
+  --color-rose-400: #ff7a66;
+  --color-rose-500: #f0604a;
+  /* Warnings: honey. */
+  --color-amber-100: #fbe6bd;
+  --color-amber-200: #f7d38a;
+  --color-amber-400: #f2b84b;
+
+  --logo-a: #8ca8ff;
+  --logo-b: #ff8fc8;
+}
+
+/* The field. Base colour on body; aurora and lattice are fixed layers behind all content, so they hold still while panes move over them. */
+[data-theme="liquid_glass"] body {
+  background: var(--lg-ground);
+  color: var(--lg-text);
+}
+
+[data-theme="liquid_glass"] body::before,
+[data-theme="liquid_glass"] body::after {
+  content: "";
+  position: fixed;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Oversized so the motion never exposes an edge. Transform + filter only, so it stays on the compositor rather than repainting the gradients each frame. */
+[data-theme="liquid_glass"] body::before {
+  inset: -25%;
+  background:
+    radial-gradient(38% 42% at 18% 22%, #3a33b8 0%, transparent 70%),
+    radial-gradient(34% 38% at 82% 16%, #8f2166 0%, transparent 70%),
+    radial-gradient(40% 44% at 70% 78%, #0d6f63 0%, transparent 70%),
+    radial-gradient(32% 36% at 24% 82%, #7a4a12 0%, transparent 70%),
+    radial-gradient(30% 30% at 50% 50%, #4f2a9e 0%, transparent 72%),
+    var(--lg-ground);
+  animation:
+    lg-undulate 28s ease-in-out infinite,
+    lg-hue 90s linear infinite;
+}
+
+/* Blur turns colour to mush; the dots let the eye see a pane bend light. */
+[data-theme="liquid_glass"] body::after {
+  inset: 0;
+  background-image: radial-gradient(rgb(255 255 255 / 0.1) 1px, transparent 1.6px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(to bottom, #000, rgb(0 0 0 / 0.5));
+}
+
+@keyframes lg-undulate {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
+  20% { transform: translate3d(5%, -4%, 0) rotate(7deg) scale(1.08); }
+  40% { transform: translate3d(-2%, -6%, 0) rotate(-4deg) scale(1.03); }
+  60% { transform: translate3d(-6%, 3%, 0) rotate(-9deg) scale(1.1); }
+  80% { transform: translate3d(3%, 5%, 0) rotate(5deg) scale(1.04); }
+  100% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
+}
+
+@keyframes lg-hue {
+  0% { filter: hue-rotate(0deg) saturate(1); }
+  50% { filter: hue-rotate(180deg) saturate(1.25); }
+  100% { filter: hue-rotate(360deg) saturate(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="liquid_glass"] body::before {
+    animation: none;
+  }
+}
+
+/* Let the aurora through; the plot gets a light smoke so lanes stay legible over the colour. */
+[data-theme="liquid_glass"] .bg-grid {
+  background: none;
+}
+
+[data-theme="liquid_glass"] .plot {
+  background: rgb(11 13 31 / 0.35);
+}
+
+[data-theme="liquid_glass"] .hero-art {
+  display: none;
+}
+
+[data-theme="liquid_glass"] .hero-logo {
+  filter: drop-shadow(0 0 20px rgb(140 168 255 / 0.45));
+}
+
+[data-theme="liquid_glass"] .brand-title {
+  background-image: linear-gradient(to bottom, #ffffff, #b4c6ff);
+  letter-spacing: 0.02em;
+}
+
+/* Panes: tint fills the padding box; the 135deg rim gradient shows only through the transparent border, lit top-left and bottom-right. */
+[data-theme="liquid_glass"] .glass {
+  border: 1px solid transparent;
+  border-radius: 22px;
+  background:
+    linear-gradient(var(--lg-tint), var(--lg-tint)) padding-box,
+    linear-gradient(135deg, var(--lg-rim)) border-box;
+  -webkit-backdrop-filter: var(--lg-blur);
+  backdrop-filter: var(--lg-blur);
+  box-shadow: var(--lg-edge), var(--lg-drop);
+}
+
+[data-theme="liquid_glass"] .glass.window {
+  background:
+    linear-gradient(var(--lg-tint-strong), var(--lg-tint-strong)) padding-box,
+    linear-gradient(135deg, var(--lg-rim)) border-box;
+}
+
+[data-theme="liquid_glass"] :is(.minimap, .playback-bar, .keys-hint) {
+  border-radius: 16px;
+}
+
+/* Floating surfaces. */
+[data-theme="liquid_glass"] .tooltip {
+  background: var(--lg-pop);
+  border: 1px solid var(--lg-glint);
+  border-radius: 14px;
+  -webkit-backdrop-filter: var(--lg-blur-soft);
+  backdrop-filter: var(--lg-blur-soft);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 14px 36px -10px rgb(0 0 0 / 0.65);
+}
+
+/* Top bar: a glass strip. */
+[data-theme="liquid_glass"] .titlebar {
+  background: var(--lg-tint);
+  border-color: var(--lg-glint);
+  -webkit-backdrop-filter: var(--lg-blur);
+  backdrop-filter: var(--lg-blur);
+  box-shadow: var(--lg-edge), var(--lg-drop);
+}
+
+/* Lens warp, Chromium only, top bar only. The url() filter must come first: the warp samples the unblurred backdrop, then a light blur frosts it. */
+[data-theme="liquid_glass"][data-glass-refract] .titlebar {
+  background: var(--lg-refract-tint);
+  -webkit-backdrop-filter: url(#lg-refract) blur(3px) saturate(180%);
+  backdrop-filter: url(#lg-refract) blur(3px) saturate(180%);
+}
+
+/* Title rows inside a pane sit flush in it. */
+[data-theme="liquid_glass"] .window-title {
+  border-color: var(--lg-divider);
+}
+
+[data-theme="liquid_glass"] .divider {
+  background: var(--lg-divider);
+}
+
+[data-theme="liquid_glass"] .modal-backdrop {
+  background: var(--lg-veil);
+  -webkit-backdrop-filter: blur(6px) saturate(140%);
+  backdrop-filter: blur(6px) saturate(140%);
+}
+
+/* Controls: frosted capsules. */
+[data-theme="liquid_glass"] .btn {
+  background: var(--lg-control);
+  border: 1px solid var(--lg-control-rim);
+  border-radius: 999px;
+  color: var(--lg-text);
+  box-shadow: var(--lg-edge), var(--lg-button-drop);
+}
+
+[data-theme="liquid_glass"] .btn:hover:not(:disabled) {
+  background: var(--lg-control-hover);
+}
+
+[data-theme="liquid_glass"] .btn.lit,
+[data-theme="liquid_glass"] .btn.lit:hover:not(:disabled) {
+  background: rgb(124 156 255 / 0.26);
+  border-color: rgb(160 184 255 / 0.55);
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), 0 0 14px -2px rgb(124 156 255 / 0.55);
+}
+
+/* The primary action is tinted glass, not a flat fill. */
+[data-theme="liquid_glass"] .btn-primary {
+  background: linear-gradient(to bottom, rgb(84 124 240 / 0.92), rgb(40 78 200 / 0.92));
+  border: 1px solid rgb(255 255 255 / 0.3);
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.4), 0 6px 18px -6px rgb(40 78 200 / 0.6);
+  filter: none;
+}
+
+[data-theme="liquid_glass"] .btn-primary:hover:not(:disabled) {
+  background: linear-gradient(to bottom, rgb(104 142 250 / 0.95), rgb(52 92 215 / 0.95));
+}
+
+[data-theme="liquid_glass"] .field {
+  background-color: var(--lg-control);
+  border: 1px solid var(--lg-control-rim);
+  border-radius: 10px;
+  color: var(--lg-text);
+  box-shadow: var(--lg-control-sink);
+}
+
+[data-theme="liquid_glass"] .field:focus {
+  border-color: var(--lg-focus);
+  --tw-ring-color: rgb(140 168 255 / 0.25);
+}
+
+/* The landing form's input sits inside a glass pane already. */
+[data-theme="liquid_glass"] form.glass .field {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+[data-theme="liquid_glass"] .segmented {
+  background: var(--lg-control);
+  border-color: var(--lg-control-rim);
+  border-radius: 999px;
+  box-shadow: var(--lg-control-sink);
+}
+
+[data-theme="liquid_glass"] .segmented button {
+  border-radius: 999px;
+}
+
+[data-theme="liquid_glass"] .segmented button.on {
+  background: rgb(255 255 255 / 0.1);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18);
+}
+
+[data-theme="liquid_glass"] .chip {
+  background: var(--lg-control);
+  border-color: var(--lg-control-rim);
+  border-radius: 999px;
+}
+
+[data-theme="liquid_glass"] .chip:hover {
+  border-color: var(--lg-focus);
+}
+
+[data-theme="liquid_glass"] .progress {
+  background: var(--lg-control);
+}
+
+[data-theme="liquid_glass"] .progress-bar {
+  background: linear-gradient(to right, #8ca8ff, #ff8fc8);
+}
+
+[data-theme="liquid_glass"] .list-pane {
+  background: rgb(0 0 0 / 0.12);
+}
+
+[data-theme="liquid_glass"] .list-row:hover {
+  background: var(--lg-control);
+}
+
+[data-theme="liquid_glass"] .warning-bar {
+  background: rgb(242 184 75 / 0.12);
+  border-color: rgb(242 184 75 / 0.25);
+  -webkit-backdrop-filter: var(--lg-blur-soft);
+  backdrop-filter: var(--lg-blur-soft);
+}
+
+[data-theme="liquid_glass"] kbd {
+  background: var(--lg-control);
+  border-color: var(--lg-control-rim);
+  border-radius: 6px;
+}
+
+[data-theme="liquid_glass"] .scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--lg-scroll);
+}
+
+[data-theme="liquid_glass"] .lane-scroll-thumb {
+  box-shadow: 0 0 8px rgb(140 168 255 / 0.3);
+}
+
+[data-theme="liquid_glass"] .playback-scrub::-webkit-slider-runnable-track {
+  background: var(--lg-control-rim);
+}
+[data-theme="liquid_glass"] .playback-scrub::-moz-range-track {
+  background: var(--lg-control-rim);
+}
+[data-theme="liquid_glass"] .playback-scrub::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgb(140 168 255 / 0.35), 0 2px 6px rgb(0 0 0 / 0.5);
+}
+[data-theme="liquid_glass"] .playback-scrub::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgb(140 168 255 / 0.35), 0 2px 6px rgb(0 0 0 / 0.5);
+}
+
+[data-theme="liquid_glass"] ::selection {
+  background-color: var(--lg-select);
+  color: var(--lg-text);
+}
+
+[data-theme="liquid_glass"] :focus-visible {
+  outline: 2px solid var(--lg-focus);
+  outline-offset: 2px;
+}
+
+[data-theme="liquid_glass"] * {
+  scrollbar-color: var(--lg-scroll) transparent;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  [data-theme="liquid_glass"] {
+    --lg-tint: rgb(22 25 52 / 0.94);
+    --lg-tint-strong: rgb(30 34 66 / 0.97);
+    --lg-pop: rgb(22 25 52 / 0.98);
+  }
+}
