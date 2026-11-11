@@ -6,13 +6,14 @@ import { create } from 'zustand';
  * variants like Mac OS 8 Mono share chrome and differ only in `palette()`.
  * SVG colors can't come from Tailwind classes, so they live in `palette()`.
  */
-export type ThemeId = 'pigment' | 'mac_os_8' | 'mac_os_8_mono' | 'oscilloscope';
+export type ThemeId = 'pigment' | 'mac_os_8' | 'mac_os_8_mono' | 'oscilloscope' | 'liquid_glass';
 
 export const THEMES: { id: ThemeId; label: string; css: string }[] = [
   { id: 'pigment', label: 'Pigment', css: 'pigment' },
   { id: 'mac_os_8', label: 'Mac OS 8', css: 'mac_os_8' },
   { id: 'mac_os_8_mono', label: 'Mac OS 8 Mono', css: 'mac_os_8' },
   { id: 'oscilloscope', label: 'Oscilloscope', css: 'oscilloscope' },
+  { id: 'liquid_glass', label: 'Liquid Glass', css: 'liquid_glass' },
 ];
 
 const STORAGE_KEY = 'brancher.theme';
@@ -161,6 +162,42 @@ const PALETTES: Record<ThemeId, Palette> = {
     },
     legend: { merged: '#35d6e8', squashed: '#e75aa6', open: '#71d98b', abandoned: '#8995a3' },
   },
+  liquid_glass: {
+    // Smoked glass over a night aurora: periwinkle trunk, jewel-tone lanes bright enough to read through the colour field.
+    trunk: '#b4c6ff',
+    hole: '#0b0d1f',
+    labelHalo: '#0b0d1f',
+    axisBg: '#161a3c',
+    axisBgOpacity: 0.55,
+    ink: '#eef0ff',
+    gridOpacity: 0.06,
+    instrument: false,
+    window: '#eef0ff',
+    playhead: '#8ca8ff',
+    playheadText: '#0b0d1f',
+    flash: '#eef0ff',
+    glow: true,
+    branch: {
+      saturation: 70,
+      lightness: 68,
+      lightnessMax: 80,
+      swatches: [
+        { h: 262, s: 90, l: 76 }, // lavender
+        { h: 330, s: 85, l: 72 }, // rose
+        { h: 160, s: 60, l: 62 }, // mint
+        { h: 38, s: 88, l: 64 }, // honey
+        { h: 196, s: 85, l: 68 }, // sky
+        { h: 290, s: 70, l: 74 }, // orchid
+        { h: 12, s: 90, l: 70 }, // coral
+        { h: 176, s: 60, l: 58 }, // lagoon
+        { h: 70, s: 60, l: 62 }, // chartreuse
+        { h: 240, s: 80, l: 78 }, // periwinkle
+        { h: 350, s: 70, l: 78 }, // blush
+        { h: 140, s: 45, l: 66 }, // sage
+      ],
+    },
+    legend: { merged: '#a99bff', squashed: '#ff8fc8', open: '#5fd3a0', abandoned: '#8d92b8' },
+  },
 };
 
 export const palette = (theme: ThemeId): Palette => PALETTES[theme];
@@ -199,6 +236,10 @@ export const useTheme = create<ThemeState>((set) => ({
 
 /** Current theme's SVG palette; re-renders the caller when the theme changes. */
 export const usePalette = () => palette(useTheme((s) => s.theme));
+
+// Only Chromium applies an SVG filter in backdrop-filter, so Liquid Glass gates
+// its lens warp on this flag (navigator.userAgentData is Chromium-only).
+if ('userAgentData' in navigator) document.documentElement.dataset.glassRefract = '';
 
 // Apply before the first render so there's no flash of the default theme.
 apply(useTheme.getState().theme);
